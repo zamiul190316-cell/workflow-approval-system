@@ -94,7 +94,7 @@ DEFAULT_FROM_EMAIL  = f'Trust Bank PLC <{EMAIL_HOST_USER}>'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'workflow_app' / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

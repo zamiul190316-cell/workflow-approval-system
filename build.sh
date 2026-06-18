@@ -4,10 +4,10 @@ set -o errexit
 pip install --upgrade pip
 pip install -r requirements.txt
 
+mkdir -p staticfiles
 python manage.py collectstatic --no-input
 python manage.py migrate
 
-# Create superuser if not exists
 python manage.py shell -c "
 from workflow_app.models import User
 if not User.objects.filter(username='admin').exists():

@@ -1,0 +1,58 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Compose{% endblock %}
+{% block header_title %}Compose Message{% endblock %}
+{% block nav_inbox %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">✏️ New Message</div></div>
+  <a href="{% url 'inbox' %}" class="btn btn-outline">← Back to Inbox</a>
+</div>
+
+<div class="card" style="max-width:760px;">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label class="form-label">From</label>
+        <input type="text" class="form-control"
+          value="{{ request.user.get_full_name|default:request.user.username }} — {{ request.user.email }}"
+          disabled style="opacity:.6;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">To <span style="color:#ef4444;">*</span></label>
+        <select name="recipient" class="form-control" required>
+          <option value="">— Select Recipient —</option>
+          {% for u in users %}
+          <option value="{{ u.pk }}"
+            {% if request.GET.reply_to == u.pk|stringformat:"s" %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }} — {{ u.email }} ({{ u.get_role_display }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Subject <span style="color:#ef4444;">*</span></label>
+        <input type="text" name="subject" class="form-control"
+          value="{{ request.GET.subject|default:'' }}"
+          placeholder="Message subject..." required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Message <span style="color:#ef4444;">*</span></label>
+        <textarea name="body" class="form-control" rows="10"
+          placeholder="Type your message here..." required></textarea>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <button type="submit" class="btn btn-primary" style="padding:10px 28px;">📤 Send Message</button>
+        <a href="{% url 'inbox' %}" class="btn btn-outline">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}

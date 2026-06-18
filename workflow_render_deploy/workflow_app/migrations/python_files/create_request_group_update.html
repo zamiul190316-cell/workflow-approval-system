@@ -1,0 +1,111 @@
+{% comment %}
+════════════════════════════════════════════════════════════════
+INSTRUCTION: Update create_request.html to support Group Approval
+FILE: workflow_app/templates/workflow_app/create_request.html
+════════════════════════════════════════════════════════════════
+
+FIND this section in the Approval Chain card:
+  <div style="margin-bottom:10px;display:flex;gap:8px;">
+    <input type="text" id="approverSearch" ...>
+    <select id="divisionFilter" ...>
+  </div>
+
+ADD this toggle button row BEFORE the above section:
+════════════════════════════════════════════════════════════════
+{% endcomment %}
+
+        <!-- Step Type Toggle (add this before approver search bar) -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;padding:10px;background:var(--bg-secondary);border-radius:8px;">
+          <span style="font-size:.78rem;color:var(--text-muted);align-self:center;margin-right:4px;">Default step type:</span>
+          <button type="button" id="btnIndividual" onclick="setDefaultType('individual')"
+            class="btn btn-primary" style="padding:4px 14px;font-size:.78rem;">👤 Individual</button>
+          <button type="button" id="btnGroup" onclick="setDefaultType('group')"
+            class="btn btn-outline" style="padding:4px 14px;font-size:.78rem;">👥 Group</button>
+        </div>
+
+{% comment %}
+════════════════════════════════════════════════════════════════
+FIND the addApprover() JavaScript function and REPLACE with this:
+════════════════════════════════════════════════════════════════
+{% endcomment %}
+
+<script>
+// ── Add this to the existing <script> block in create_request.html ──
+// Replace or extend the existing addApprover function
+
+let defaultStepType = 'individual';
+
+// Load groups via AJAX
+let allGroups = [];
+fetch('/api/groups/')
+  .then(r => r.json())
+  .then(d => { allGroups = d.groups || []; })
+  .catch(() => {});
+
+function setDefaultType(type) {
+  defaultStepType = type;
+  document.getElementById('btnIndividual').className = type === 'individual' ? 'btn btn-primary' : 'btn btn-outline';
+  document.getElementById('btnGroup').className = type === 'group' ? 'btn btn-primary' : 'btn btn-outline';
+  document.querySelectorAll('#btnIndividual,#btnGroup').forEach(b => {
+    b.style.fontSize = '.78rem'; b.style.padding = '4px 14px';
+  });
+}
+
+function buildGroupOptions() {
+  return allGroups.map(g =>
+    `<option value="${g.id}">${g.name} (${g.member_count} members)</option>`
+  ).join('');
+}
+
+function addApprover(existingApproverId='', existingRole='', stepType='', existingGroupId='') {
+  const rows = document.querySelectorAll('.approver-row');
+  if (rows.length >= MAX) { alert('Maximum 50 approvers allowed.'); return; }
+  const list = document.getElementById('approverList');
+  const type = stepType || defaultStepType;
+  const div = document.createElement('div');
+  div.className = 'approver-row';
+  div.innerHTML = `
+    <div class="step-num">${rows.length + 1}</div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;gap:6px;margin-bottom:4px;">
+        <button type="button" class="btn-type-individual btn ${type==='individual'?'btn-primary':'btn-outline'}"
+          onclick="toggleStepType(this,'individual')" style="padding:3px 10px;font-size:.72rem;">👤 Individual</button>
+        <button type="button" class="btn-type-group btn ${type==='group'?'btn-primary':'btn-outline'}"
+          onclick="toggleStepType(this,'group')" style="padding:3px 10px;font-size:.72rem;">👥 Group</button>
+      </div>
+      <input type="hidden" name="step_types" value="${type}" class="step-type-input">
+      <div class="individual-section" style="display:${type==='individual'?'flex':'none'};gap:6px;">
+        ${buildSelect(existingApproverId)}
+        <select name="approver_roles" class="form-control" style="max-width:130px;">${roleOptions}</select>
+      </div>
+      <div class="group-section" style="display:${type==='group'?'flex':'none'};gap:6px;">
+        <select name="group_ids" class="form-control">
+          <option value="">— Select Group —</option>
+          ${buildGroupOptions()}
+        </select>
+        <input type="hidden" name="approvers" value="0" class="group-approver-hidden">
+        <select name="approver_roles" class="form-control" style="max-width:130px;display:${type==='group'?'none':'block'};">${roleOptions}</select>
+      </div>
+    </div>
+    <button type="button" class="remove-btn" onclick="removeApprover(this)">✕</button>
+  `;
+  // Set group selection if editing
+  if (existingGroupId && type === 'group') {
+    const gSel = div.querySelector('select[name="group_ids"]');
+    if (gSel) gSel.value = existingGroupId;
+  }
+  list.appendChild(div);
+  updateCount();
+}
+
+function toggleStepType(btn, type) {
+  const row = btn.closest('.approver-row');
+  row.querySelector('.step-type-input').value = type;
+  row.querySelector('.btn-type-individual').className = `btn-type-individual btn ${type==='individual'?'btn-primary':'btn-outline'}`;
+  row.querySelector('.btn-type-individual').style.cssText = 'padding:3px 10px;font-size:.72rem;';
+  row.querySelector('.btn-type-group').className = `btn-type-group btn ${type==='group'?'btn-primary':'btn-outline'}`;
+  row.querySelector('.btn-type-group').style.cssText = 'padding:3px 10px;font-size:.72rem;';
+  row.querySelector('.individual-section').style.display = type === 'individual' ? 'flex' : 'none';
+  row.querySelector('.group-section').style.display = type === 'group' ? 'flex' : 'none';
+}
+</script>

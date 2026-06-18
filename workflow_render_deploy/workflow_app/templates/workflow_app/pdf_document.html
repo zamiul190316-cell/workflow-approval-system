@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Approval Document — {{ req.reference_number }}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12pt; color: #1a1a2e; background: #fff; }
+  .doc-wrapper { max-width: 900px; margin: 0 auto; padding: 40px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1a3a6b; padding-bottom: 20px; margin-bottom: 24px; }
+  .bank-logo { display: flex; align-items: center; gap: 12px; }
+  .bank-icon { font-size: 2.5rem; }
+  .bank-name { font-size: 1.4rem; font-weight: 700; color: #1a3a6b; }
+  .bank-sub { font-size: .8rem; color: #666; margin-top: 2px; }
+  .doc-meta { text-align: right; }
+  .ref-box { background: #1a3a6b; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 1rem; }
+  .doc-title { font-size: 1.3rem; font-weight: 700; color: #1a3a6b; margin: 20px 0 4px; }
+  .doc-subtitle { font-size: .9rem; color: #666; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin: 20px 0; }
+  .info-cell { padding: 10px 16px; border-bottom: 1px solid #eee; }
+  .info-cell:nth-child(odd) { background: #f8f9fa; border-right: 1px solid #ddd; }
+  .info-label { font-size: .75rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .5px; }
+  .info-value { font-size: .92rem; color: #1a1a2e; margin-top: 2px; font-weight: 500; }
+  .section-title { font-size: 1rem; font-weight: 700; color: #1a3a6b; border-left: 4px solid #1a3a6b; padding-left: 10px; margin: 24px 0 12px; }
+  .desc-box { background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-size: .9rem; line-height: 1.7; }
+  table.approval-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  table.approval-table th { background: #1a3a6b; color: #fff; padding: 10px 12px; font-size: .8rem; text-align: left; }
+  table.approval-table td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: .88rem; vertical-align: middle; }
+  table.approval-table tr:nth-child(even) td { background: #f8f9fa; }
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+  .status-approved { background: #dcfce7; color: #166534; }
+  .status-rejected { background: #fee2e2; color: #991b1b; }
+  .status-pending { background: #fef9c3; color: #854d0e; }
+  .status-returned { background: #e0e7ff; color: #3730a3; }
+  .signature-cell { text-align: center; min-width: 140px; }
+  .signature-img { max-height: 50px; max-width: 130px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  .sig-name { font-size: .75rem; font-weight: 600; margin-top: 4px; }
+  .sig-des { font-size: .68rem; color: #666; }
+  .watermark-box { border: 2px solid #1a3a6b; border-radius: 8px; padding: 12px 20px; margin: 24px 0; background: #eff6ff; }
+  .watermark-text { font-size: .85rem; color: #1a3a6b; font-style: italic; }
+  .footer { margin-top: 40px; border-top: 2px solid #e2e8f0; padding-top: 16px; display: flex; justify-content: space-between; font-size: .75rem; color: #888; }
+  .qr-section { display: flex; align-items: flex-start; gap: 16px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; }
+  .audit-info { font-size: .78rem; line-height: 1.8; }
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="doc-wrapper">
+
+  <!-- Print Controls -->
+  <div class="no-print" style="background:#1a3a6b;color:#fff;padding:12px 20px;border-radius:8px;margin-bottom:24px;display:flex;gap:12px;align-items:center;">
+    <strong>🖨️ Print / Download PDF</strong>
+    <span style="flex:1;font-size:.85rem;opacity:.8;">Mode: <strong>{{ pdf_mode|title }}</strong> — Use Ctrl+P or browser Print to save as PDF</span>
+    <a href="?mode=system" style="color:#fff;text-decoration:underline;font-size:.82rem;">System</a>
+    <a href="?mode=manual" style="color:#fff;text-decoration:underline;font-size:.82rem;">Manual Sign</a>
+    <a href="?mode=digital" style="color:#fff;text-decoration:underline;font-size:.82rem;">Digital Sign</a>
+    <button onclick="window.print()" style="background:#f59e0b;color:#1a1a2e;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;">Print / Save PDF</button>
+  </div>
+
+  <!-- Document Header -->
+  <div class="header">
+    <div class="bank-logo">
+      <div class="bank-icon">🏦</div>
+      <div>
+        <div class="bank-name">Trust Bank PLC</div>
+        <div class="bank-sub">Organizational Workflow Approval System</div>
+        <div class="bank-sub">Regulated by Bangladesh Bank</div>
+      </div>
+    </div>
+    <div class="doc-meta">
+      <div class="ref-box">{{ req.reference_number }}</div>
+      <div style="font-size:.8rem;color:#666;margin-top:6px;">Date: {{ req.date|date:"d F Y" }}</div>
+      <div style="font-size:.8rem;color:#666;">Generated: {{ generated_at|date:"d F Y H:i" }}</div>
+    </div>
+  </div>
+
+  <!-- Watermark based on mode -->
+  {% if pdf_mode == 'system' %}
+  <div class="watermark-box">
+    <div class="watermark-text">📋 This is a system-generated approval document. No physical signature required. Verified digitally by Trust Bank PLC Workflow Approval System.</div>
+  </div>
+  {% elif pdf_mode == 'manual' %}
+  <div class="watermark-box" style="border-color:#d97706;background:#fffbeb;">
+    <div class="watermark-text" style="color:#d97706;">✍️ This document requires physical signatures from all approvers at the designated signature fields below.</div>
+  </div>
+  {% elif pdf_mode == 'digital' %}
+  <div class="watermark-box" style="border-color:#059669;background:#ecfdf5;">
+    <div class="watermark-text" style="color:#059669;">🔐 Digitally signed by authorized approvers. Signature images placed at approval fields. Tamper-evident via audit hash.</div>
+  </div>
+  {% endif %}
+
+  <!-- Document Title -->
+  <div class="doc-title">{{ req.subject }}</div>
+  <div class="doc-subtitle">{{ req.category.get_group_display }} › {{ req.category.name }}</div>
+
+  <!-- Info Grid -->
+  <div class="info-grid">
+    <div class="info-cell"><div class="info-label">Reference Number</div><div class="info-value">{{ req.reference_number }}</div></div>
+    <div class="info-cell"><div class="info-label">Status</div><div class="info-value">{{ req.get_status_display }}</div></div>
+    <div class="info-cell"><div class="info-label">Initiated By</div><div class="info-value">{{ req.initiator.get_full_name|default:req.initiator.username }} ({{ req.initiator.employee_id|default:"N/A" }})</div></div>
+    <div class="info-cell"><div class="info-label">Designation</div><div class="info-value">{{ req.initiator.designation|default:"—" }}</div></div>
+    <div class="info-cell"><div class="info-label">Division</div><div class="info-value">{{ req.division.name|default:"—" }}</div></div>
+    <div class="info-cell"><div class="info-label">Branch</div><div class="info-value">{{ req.branch.name|default:"—" }}</div></div>
+    <div class="info-cell"><div class="info-label">Date Submitted</div><div class="info-value">{{ req.submitted_at|date:"d F Y H:i"|default:"—" }}</div></div>
+    <div class="info-cell"><div class="info-label">Date Completed</div><div class="info-value">{{ req.completed_at|date:"d F Y H:i"|default:"—" }}</div></div>
+    {% if req.amount %}
+    <div class="info-cell"><div class="info-label">Amount</div><div class="info-value">{{ req.currency }} {{ req.amount|floatformat:2 }}</div></div>
+    <div class="info-cell"><div class="info-label">Document Version</div><div class="info-value">v{{ req.version }}</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Description -->
+  <div class="section-title">Request Description</div>
+  <div class="desc-box">{{ req.description }}</div>
+
+  <!-- Approval Chain -->
+  <div class="section-title">Approval Chain</div>
+  <table class="approval-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Approver</th>
+        <th>Designation</th>
+        <th>Division</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Date & Time</th>
+        {% if pdf_mode == 'digital' %}<th>Signature</th>{% endif %}
+        {% if pdf_mode == 'manual' %}<th>Manual Signature</th>{% endif %}
+        <th>Comment</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for step in steps %}
+      <tr>
+        <td>{{ step.step_number }}</td>
+        <td>
+          <strong>{{ step.approver.get_full_name|default:step.approver.username }}</strong>
+          {% if step.acting_approver %}<br><small style="color:#666;">(Acting: {{ step.acting_approver.get_full_name }})</small>{% endif %}
+          <br><small style="color:#666;">{{ step.approver.employee_id|default:"" }}</small>
+        </td>
+        <td>{{ step.approver.designation|default:"—" }}</td>
+        <td>{{ step.approver.division.name|default:"—" }}</td>
+        <td>{{ step.get_approver_role_display }}</td>
+        <td>
+          <span class="status-badge status-{{ step.status }}">{{ step.get_status_display }}</span>
+        </td>
+        <td>{{ step.action_taken_at|date:"d M Y H:i"|default:"—" }}</td>
+        {% if pdf_mode == 'digital' %}
+        <td class="signature-cell">
+          {% if step.approver.signature_image and step.status == 'approved' %}
+            <img src="{{ step.approver.signature_image.url }}" alt="Sig" class="signature-img">
+            <div class="sig-name">{{ step.approver.get_full_name }}</div>
+            <div class="sig-des">{{ step.action_taken_at|date:"d M Y" }}</div>
+          {% elif step.status == 'approved' %}
+            <div style="border-bottom:1px solid #333;height:40px;margin-bottom:4px;"></div>
+            <div class="sig-des">Digitally Approved</div>
+          {% else %}
+            <div style="color:#999;font-size:.75rem;">Pending</div>
+          {% endif %}
+        </td>
+        {% endif %}
+        {% if pdf_mode == 'manual' %}
+        <td class="signature-cell">
+          <div style="border-bottom:1px solid #333;height:50px;margin-bottom:4px;"></div>
+          <div class="sig-name">{{ step.approver.get_full_name }}</div>
+          <div class="sig-des">Date: ___________</div>
+        </td>
+        {% endif %}
+        <td style="font-size:.82rem;max-width:200px;">{{ step.comment|truncatechars:80|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Audit Trail -->
+  <div class="section-title">Audit Timeline</div>
+  <table class="approval-table">
+    <thead><tr><th>Timestamp</th><th>Action</th><th>Actor</th><th>Comment</th></tr></thead>
+    <tbody>
+      {% for h in history %}
+      <tr>
+        <td>{{ h.timestamp|date:"d M Y H:i:s" }}</td>
+        <td>{{ h.get_action_display }}</td>
+        <td>{{ h.actor.get_full_name|default:h.actor.username }}</td>
+        <td style="font-size:.82rem;">{{ h.comment|truncatechars:80|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- QR & Audit Section -->
+  <div class="qr-section">
+    <div style="background:#1a3a6b;padding:16px;border-radius:8px;color:#fff;text-align:center;min-width:100px;">
+      <div style="font-size:2rem;">QR</div>
+      <div style="font-size:.65rem;margin-top:4px;">Scan to verify</div>
+    </div>
+    <div class="audit-info">
+      <strong>Document Verification</strong><br>
+      Audit ID: <code>{{ req.audit_id }}</code><br>
+      Reference: {{ req.reference_number }}<br>
+      Generated: {{ generated_at|date:"d F Y H:i:s" }}<br>
+      Total Approvers: {{ steps|length }}<br>
+      Verify at: {{ request.scheme }}://{{ request.get_host }}/requests/{{ req.pk }}/
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>Trust Bank PLC — Organizational Workflow Approval System</div>
+    <div>Ref: {{ req.reference_number }} | {{ generated_at|date:"d F Y" }}</div>
+    <div>Confidential — Internal Use Only</div>
+  </div>
+
+</div>
+</body>
+</html>

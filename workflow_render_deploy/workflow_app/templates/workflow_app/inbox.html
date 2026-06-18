@@ -1,0 +1,118 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Inbox{% endblock %}
+{% block header_title %}Internal Mailbox{% endblock %}
+{% block nav_inbox %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">📬 Inbox — {{ request.user.email }}</div>
+    <div class="page-subtitle">Internal messaging for Trust Bank PLC</div>
+  </div>
+  <a href="{% url 'inbox_compose' %}" class="btn btn-primary">✏️ Compose</a>
+</div>
+
+<div style="display:grid;grid-template-columns:200px 1fr;gap:20px;">
+
+  <!-- Sidebar folders -->
+  <div class="card" style="height:fit-content;">
+    <div class="card-body" style="padding:10px;">
+      <a href="{% url 'inbox' %}?folder=inbox"
+         class="nav-item {% if folder == 'inbox' %}active{% endif %}"
+         style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span>📥 Inbox</span>
+        {% if unread_count %}<span class="badge badge-red" style="font-size:.7rem;">{{ unread_count }}</span>{% endif %}
+      </a>
+      <a href="{% url 'inbox' %}?folder=starred"
+         class="nav-item {% if folder == 'starred' %}active{% endif %}"
+         style="margin-bottom:4px;">
+        ⭐ Starred
+      </a>
+      <a href="{% url 'inbox' %}?folder=sent"
+         class="nav-item {% if folder == 'sent' %}active{% endif %}"
+         style="margin-bottom:4px;">
+        📤 Sent
+      </a>
+      <div style="border-top:1px solid var(--border-color);margin:8px 0;"></div>
+      <a href="{% url 'inbox_mark_read' %}" class="nav-item" style="font-size:.8rem;color:var(--text-muted);margin-bottom:4px;">
+        ✅ Mark all read
+      </a>
+      <a href="{% url 'inbox_compose' %}" class="nav-item" style="font-size:.8rem;">
+        ✏️ Compose
+      </a>
+    </div>
+  </div>
+
+  <!-- Message list -->
+  <div class="card">
+    <div class="card-body" style="padding:0;">
+      {% for msg in messages_qs %}
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border-color);{% if not msg.is_read and folder != 'sent' %}background:rgba(59,130,246,.05);{% endif %}">
+
+        <!-- Star button -->
+        <a href="{% url 'inbox_star' msg.pk %}"
+           style="color:{% if msg.is_starred %}#f59e0b{% else %}rgba(255,255,255,.2){% endif %};font-size:1.1rem;text-decoration:none;flex-shrink:0;">★</a>
+
+        <!-- Avatar -->
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue-accent),var(--violet-accent));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0;">
+          {% if folder == 'sent' %}
+            {{ msg.recipient.first_name|first|upper }}{{ msg.recipient.last_name|first|upper }}
+          {% else %}
+            {% if msg.sender %}{{ msg.sender.first_name|first|upper }}{{ msg.sender.last_name|first|upper }}{% else %}SY{% endif %}
+          {% endif %}
+        </div>
+
+        <!-- Message preview -->
+        <a href="{% url 'inbox_detail' msg.pk %}" style="flex:1;text-decoration:none;color:inherit;min-width:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.88rem;font-weight:{% if not msg.is_read and folder != 'sent' %}700{% else %}400{% endif %};color:var(--text-primary);">
+              {% if folder == 'sent' %}
+                To: {{ msg.recipient.get_full_name|default:msg.recipient.username }}
+              {% else %}
+                {% if msg.sender %}{{ msg.sender.get_full_name|default:msg.sender.username }}{% else %}System{% endif %}
+              {% endif %}
+            </span>
+            <span style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;margin-left:12px;">
+              {{ msg.created_at|date:"d M Y H:i" }}
+            </span>
+          </div>
+          <div style="font-size:.85rem;font-weight:{% if not msg.is_read and folder != 'sent' %}600{% else %}400{% endif %};margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ msg.subject }}
+          </div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ msg.body|truncatechars:80 }}
+          </div>
+          {% if msg.request %}
+          <div style="margin-top:4px;">
+            <span class="ref-number" style="font-size:.72rem;">{{ msg.request.reference_number }}</span>
+          </div>
+          {% endif %}
+        </a>
+
+        <!-- Delete button -->
+        {% if folder != 'sent' %}
+        <a href="{% url 'inbox_delete' msg.pk %}"
+           onclick="return confirm('Delete this message?')"
+           style="color:rgba(239,68,68,.5);font-size:1rem;text-decoration:none;padding:4px;flex-shrink:0;">🗑</a>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+        <div style="font-size:3rem;margin-bottom:14px;">
+          {% if folder == 'sent' %}📤{% elif folder == 'starred' %}⭐{% else %}📭{% endif %}
+        </div>
+        <div style="font-size:1rem;font-weight:600;margin-bottom:8px;">
+          {% if folder == 'sent' %}No sent messages
+          {% elif folder == 'starred' %}No starred messages
+          {% else %}Your inbox is empty{% endif %}
+        </div>
+        {% if folder == 'inbox' %}
+        <a href="{% url 'inbox_compose' %}" class="btn btn-primary" style="margin-top:8px;">✏️ Compose a message</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

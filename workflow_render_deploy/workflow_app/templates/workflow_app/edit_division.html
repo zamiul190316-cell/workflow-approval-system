@@ -1,0 +1,36 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Edit Division{% endblock %}
+{% block header_title %}Edit Division{% endblock %}
+{% block nav_divisions %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Edit Division: {{ div.name }}</div></div>
+  <a href="{% url 'manage_divisions' %}" class="btn btn-outline">← Back</a>
+</div>
+<div class="card" style="max-width:600px;">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Division Name *</label>
+        <input type="text" name="name" class="form-control" value="{{ div.name }}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Division Head Name</label>
+        <input type="text" name="head_name" class="form-control" value="{{ div.head_name }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3">{{ div.description }}</textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" name="is_active" {% if div.is_active %}checked{% endif %}> Active
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

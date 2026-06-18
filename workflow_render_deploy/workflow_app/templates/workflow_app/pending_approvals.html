@@ -1,0 +1,85 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Pending Approvals{% endblock %}
+{% block header_title %}Pending Approvals{% endblock %}
+{% block nav_pending %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Pending Approvals</div>
+    <div class="page-subtitle">Requests waiting for your action</div>
+  </div>
+</div>
+
+{% if delegated_steps %}
+<div class="alert alert-info">🔄 You also have <strong>{{ delegated_steps|length }}</strong> approval(s) delegated to you from other approvers.</div>
+{% endif %}
+
+<!-- My Pending Steps -->
+<div class="card mb-4">
+  <div class="card-header">
+    <span class="card-title">⏳ My Pending Actions ({{ steps|length }})</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead>
+        <tr><th>Reference</th><th>Subject</th><th>Category</th><th>Initiator</th><th>My Role</th><th>Priority</th><th>Deadline</th><th>SLA</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for step in steps %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ step.request.reference_number }}</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.88rem;">{{ step.request.subject }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ step.request.category.name }}</td>
+          <td style="font-size:.85rem;">
+            {{ step.request.initiator.get_full_name|default:step.request.initiator.username }}<br>
+            <small style="color:var(--text-muted);">{{ step.request.initiator.division.name|default:"" }}</small>
+          </td>
+          <td><span class="badge badge-in_progress" style="font-size:.72rem;">{{ step.get_approver_role_display }}</span></td>
+          <td>
+            {% if step.request.priority == 'urgent' %}<span class="badge badge-red">🔴 Urgent</span>
+            {% elif step.request.priority == 'high' %}<span class="badge badge-pending">🟡 High</span>
+            {% else %}<span class="badge badge-draft">Normal</span>{% endif %}
+          </td>
+          <td style="font-size:.82rem;{% if step.deadline and step.deadline < now %}color:#ef4444;font-weight:600;{% endif %}">
+            {{ step.deadline|date:"d M Y H:i"|default:"—" }}
+            {% if step.deadline and step.deadline < now %}<br><small>⚠️ Overdue</small>{% endif %}
+          </td>
+          <td>{% if step.request.is_sla_breached %}<span class="badge badge-red" style="font-size:.7rem;">Breached</span>{% else %}<span class="badge badge-approved" style="font-size:.7rem;">OK</span>{% endif %}</td>
+          <td>
+            <a href="{% url 'approval_action' step.pk %}" class="btn btn-amber" style="padding:6px 14px;font-size:.82rem;">⚡ Review</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">
+          🎉 No pending approvals. You are all caught up!
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Delegated Steps -->
+{% if delegated_steps %}
+<div class="card">
+  <div class="card-header"><span class="card-title">🔄 Delegated to You ({{ delegated_steps|length }})</span></div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Original Approver</th><th>Deadline</th><th></th></tr></thead>
+      <tbody>
+        {% for step in delegated_steps %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ step.request.reference_number }}</span></td>
+          <td style="font-size:.88rem;">{{ step.request.subject }}</td>
+          <td style="font-size:.85rem;">{{ step.approver.get_full_name|default:step.approver.username }}</td>
+          <td style="font-size:.82rem;">{{ step.deadline|date:"d M Y H:i"|default:"—" }}</td>
+          <td><a href="{% url 'approval_action' step.pk %}" class="btn btn-outline" style="padding:6px 14px;font-size:.82rem;">Review</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

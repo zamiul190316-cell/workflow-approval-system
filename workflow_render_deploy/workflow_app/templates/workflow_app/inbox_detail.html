@@ -1,0 +1,111 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}{{ msg.subject }}{% endblock %}
+{% block header_title %}Message Detail{% endblock %}
+{% block nav_inbox %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ msg.subject }}</div>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <a href="{% url 'inbox' %}" class="btn btn-outline">← Back to Inbox</a>
+    <a href="{% url 'inbox_compose' %}" class="btn btn-primary">✏️ Reply</a>
+    <a href="{% url 'inbox_delete' msg.pk %}"
+       class="btn btn-outline"
+       style="color:#ef4444;border-color:#ef4444;"
+       onclick="return confirm('Delete this message?')">🗑 Delete</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+
+    <!-- Message Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                padding-bottom:16px;border-bottom:1px solid var(--border-color);margin-bottom:20px;">
+
+      <div style="display:flex;gap:14px;align-items:center;">
+        <div style="width:48px;height:48px;border-radius:50%;
+                    background:linear-gradient(135deg,var(--blue-accent),var(--violet-accent));
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:.95rem;font-weight:700;color:#fff;flex-shrink:0;">
+          {% if msg.sender %}
+            {{ msg.sender.first_name|first|upper }}{{ msg.sender.last_name|first|upper }}
+          {% else %}
+            SY
+          {% endif %}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:1rem;">
+            {% if msg.sender %}
+              {{ msg.sender.get_full_name|default:msg.sender.username }}
+            {% else %}
+              System
+            {% endif %}
+          </div>
+          <div style="font-size:.8rem;color:var(--text-muted);margin-top:2px;">
+            From: {% if msg.sender %}{{ msg.sender.email }}{% else %}system@trustbankplc.com{% endif %}
+          </div>
+          <div style="font-size:.8rem;color:var(--text-muted);margin-top:2px;">
+            To: {{ msg.recipient.get_full_name|default:msg.recipient.username }}
+            &lt;{{ msg.recipient.email }}&gt;
+          </div>
+          {% if msg.sender and msg.sender.designation %}
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;">
+            {{ msg.sender.designation }}
+            {% if msg.sender.division %} · {{ msg.sender.division.name }}{% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:.85rem;color:var(--text-muted);">{{ msg.created_at|date:"l, F d, Y" }}</div>
+        <div style="font-size:.85rem;color:var(--text-muted);">{{ msg.created_at|date:"H:i" }}</div>
+        <a href="{% url 'inbox_star' msg.pk %}"
+           style="text-decoration:none;font-size:1.4rem;
+                  color:{% if msg.is_starred %}#f59e0b{% else %}rgba(255,255,255,.25){% endif %};">
+          ★
+        </a>
+      </div>
+    </div>
+
+    <!-- Related Request Badge -->
+    {% if msg.request %}
+    <div style="margin-bottom:16px;">
+      <a href="{% url 'request_detail' msg.request.pk %}" style="text-decoration:none;">
+        <span style="display:inline-block;background:rgba(59,130,246,.12);
+                     border:1px solid rgba(59,130,246,.25);
+                     padding:7px 16px;border-radius:8px;
+                     font-size:.83rem;color:var(--blue-accent);">
+          🔗 Related Request: {{ msg.request.reference_number }} — {{ msg.request.subject }}
+        </span>
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- Subject -->
+    <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;color:var(--text-primary);">
+      {{ msg.subject }}
+    </div>
+
+    <!-- Message Body -->
+    <div style="font-size:.95rem;line-height:1.9;color:var(--text-primary);
+                white-space:pre-wrap;background:var(--bg-secondary);
+                padding:22px;border-radius:10px;border:1px solid var(--border-color);">{{ msg.body }}</div>
+
+    <!-- Footer actions -->
+    <div style="margin-top:20px;display:flex;gap:12px;">
+      <a href="{% url 'inbox_compose' %}?reply_to={{ msg.sender.pk|default:'' }}&subject=Re: {{ msg.subject|urlencode }}"
+         class="btn btn-primary">↩ Reply</a>
+      <a href="{% url 'inbox' %}" class="btn btn-outline">← Back to Inbox</a>
+      <a href="{% url 'inbox_delete' msg.pk %}"
+         class="btn btn-outline"
+         style="color:#ef4444;border-color:#ef4444;margin-left:auto;"
+         onclick="return confirm('Delete this message?')">🗑 Delete</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

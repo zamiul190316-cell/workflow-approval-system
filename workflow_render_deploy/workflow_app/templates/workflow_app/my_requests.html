@@ -1,0 +1,73 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}My Requests{% endblock %}
+{% block header_title %}{% if request.user.role == 'admin' %}All Requests{% else %}My Requests{% endif %}{% endblock %}
+{% block nav_my %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{% if request.user.role == 'admin' %}All Requests{% else %}My Requests{% endif %}</div>
+    <div class="page-subtitle">Track all approval requests</div>
+  </div>
+  <a href="{% url 'create_request' %}" class="btn btn-primary">✏️ New Request</a>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-4">
+  <div class="card-body" style="padding:12px 16px;">
+    <form method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="?" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline{% endif %}" style="padding:6px 14px;font-size:.82rem;">All</a>
+        {% for val, label in status_choices %}
+        <a href="?status={{ val }}" class="btn {% if status_filter == val %}btn-primary{% else %}btn-outline{% endif %}" style="padding:6px 14px;font-size:.82rem;">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead>
+        <tr><th>Reference</th><th>Subject</th><th>Category</th>{% if request.user.role == 'admin' %}<th>Initiator</th>{% endif %}<th>Division/Branch</th><th>Priority</th><th>Status</th><th>Progress</th><th>Date</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for req in requests %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ req.reference_number }}</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.88rem;">{{ req.subject }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ req.category.name }}<br>{{ req.category.get_group_display }}</td>
+          {% if request.user.role == 'admin' %}<td style="font-size:.85rem;">{{ req.initiator.get_full_name|default:req.initiator.username }}</td>{% endif %}
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ req.division.name|default:"—" }}<br>{{ req.branch.name|default:"" }}</td>
+          <td>
+            {% if req.priority == 'urgent' %}<span class="badge badge-red">🔴 Urgent</span>
+            {% elif req.priority == 'high' %}<span class="badge badge-pending">🟡 High</span>
+            {% else %}<span class="badge badge-draft" style="font-size:.7rem;">Normal</span>{% endif %}
+          </td>
+          <td><span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span></td>
+          <td>
+            <div class="progress-bar"><div class="progress-fill" style="width:{% widthratio req.current_step req.total_steps 100 %}%"></div></div>
+            <div style="font-size:.72rem;color:var(--text-muted);">{{ req.current_step }}/{{ req.total_steps }}</div>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ req.created_at|date:"d M Y" }}</td>
+          <td style="display:flex;gap:4px;flex-wrap:wrap;">
+            <a href="{% url 'request_detail' req.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">View</a>
+            {% if req.initiator == request.user and req.status in 'draft,rejected,returned' %}
+            <a href="{% url 'edit_request' req.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">Edit</a>
+            {% endif %}
+            {% if req.status in 'approved,payment_pending,payment_released' %}
+            <a href="{% url 'generate_pdf' req.pk %}" target="_blank" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">PDF</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted);">
+          No requests found. <a href="{% url 'create_request' %}">Create one →</a>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

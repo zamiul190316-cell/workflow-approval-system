@@ -1,0 +1,84 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Create Template{% endblock %}
+{% block header_title %}Create Workflow Template{% endblock %}
+{% block nav_templates %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">New Workflow Template</div></div>
+  <a href="{% url 'manage_templates' %}" class="btn btn-outline">← Back</a>
+</div>
+
+<form method="post">
+{% csrf_token %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Template Info</span></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Template Name *</label>
+        <input type="text" name="name" class="form-control" placeholder="e.g. IT Procurement Approval" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select name="category" class="form-control" required>
+          <option value="">— Select —</option>
+          {% for cat in categories %}<option value="{{ cat.pk }}">{{ cat.get_group_display }} › {{ cat.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Approver Chain</span>
+      <button type="button" class="btn btn-outline" style="padding:4px 14px;font-size:.8rem;" onclick="addApproverRow()">+ Add Step</button>
+    </div>
+    <div class="card-body">
+      <div id="approverRows"></div>
+    </div>
+  </div>
+</div>
+<div style="margin-top:16px;"><button type="submit" class="btn btn-primary">💾 Save Template</button></div>
+</form>
+
+<script>
+let stepCount = 0;
+const approvers = [
+  {% for a in approvers %}
+  {id: {{ a.pk }}, name: "{{ a.get_full_name|default:a.username }}", eid: "{{ a.employee_id|default:'N/A' }}", des: "{{ a.designation }}"},
+  {% endfor %}
+];
+const roles = [{% for r in role_choices %}["{{ r.0 }}", "{{ r.1 }}"],{% endfor %}];
+
+function addApproverRow() {
+  stepCount++;
+  const div = document.createElement('div');
+  div.className = 'approver-step-row';
+  div.style = 'display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;background:var(--bg-secondary);padding:10px;border-radius:8px;';
+  div.innerHTML = `
+    <span style="min-width:22px;font-weight:700;color:var(--text-muted);padding-top:8px;">${stepCount}.</span>
+    <div style="flex:1">
+      <select name="approvers" class="form-control" style="margin-bottom:6px;" required>
+        <option value="">— Select Approver —</option>
+        ${approvers.map(a => `<option value="${a.id}">${a.name} (${a.eid}) — ${a.des}</option>`).join('')}
+      </select>
+      <select name="approver_roles" class="form-control" style="font-size:.82rem;">
+        ${roles.map(r => `<option value="${r[0]}">${r[1]}</option>`).join('')}
+      </select>
+    </div>
+    <button type="button" onclick="this.closest('.approver-step-row').remove();renumberSteps()" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.2rem;padding-top:6px;">✕</button>
+  `;
+  document.getElementById('approverRows').appendChild(div);
+}
+function renumberSteps() {
+  document.querySelectorAll('.approver-step-row span').forEach((s,i) => s.textContent = (i+1)+'.');
+  stepCount = document.querySelectorAll('.approver-step-row').length;
+}
+addApproverRow(); addApproverRow();
+</script>
+{% endblock %}

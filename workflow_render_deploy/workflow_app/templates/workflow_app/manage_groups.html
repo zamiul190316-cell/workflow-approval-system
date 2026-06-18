@@ -1,0 +1,80 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Approval Groups{% endblock %}
+{% block header_title %}Approval Groups{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">👥 Approval Groups</div>
+    <div class="page-subtitle">Create and manage group-based approval committees</div>
+  </div>
+  <a href="{% url 'create_group' %}" class="btn btn-primary">➕ New Group</a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+  <div class="card-body" style="padding:14px 16px;">
+    <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+      <div class="form-group" style="margin:0;flex:2;min-width:200px;">
+        <input type="text" name="q" class="form-control" placeholder="🔍 Search group name..." value="{{ q }}">
+      </div>
+      <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+        <select name="division" class="form-control">
+          <option value="">All Divisions</option>
+          {% for div in divisions %}<option value="{{ div.pk }}" {% if division_filter == div.pk|stringformat:"s" %}selected{% endif %}>{{ div.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Search</button>
+      <a href="{% url 'manage_groups' %}" class="btn btn-outline">Clear</a>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead>
+        <tr><th>Group Name</th><th>Division</th><th>Owner</th><th>Members</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for group in groups %}
+        <tr>
+          <td>
+            <strong><a href="{% url 'group_detail' group.pk %}" style="color:var(--blue-accent);">{{ group.name }}</a></strong>
+            {% if group.description %}<br><small style="color:var(--text-muted);">{{ group.description|truncatechars:60 }}</small>{% endif %}
+          </td>
+          <td style="font-size:.85rem;">{{ group.division.name|default:"—" }}</td>
+          <td style="font-size:.85rem;">{{ group.owner.get_full_name|default:group.owner.username }}</td>
+          <td>
+            <span class="badge badge-in_progress">{{ group.members.filter.count }} members</span>
+            <div style="margin-top:4px;">
+              {% for m in group.members.all|slice:":3" %}
+              <span style="font-size:.72rem;color:var(--text-muted);">{{ m.user.get_full_name|default:m.user.username }}{% if not forloop.last %}, {% endif %}</span>
+              {% endfor %}
+              {% if group.members.count > 3 %}<span style="font-size:.72rem;color:var(--text-muted);">+{{ group.members.count|add:"-3" }} more</span>{% endif %}
+            </div>
+          </td>
+          <td>
+            {% if group.is_active %}<span class="badge badge-approved">Active</span>
+            {% else %}<span class="badge badge-rejected">Inactive</span>{% endif %}
+          </td>
+          <td style="font-size:.82rem;color:var(--text-muted);">{{ group.created_at|date:"d M Y" }}</td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a href="{% url 'group_detail' group.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">View</a>
+              <a href="{% url 'edit_group' group.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">Edit</a>
+              <form method="post" action="{% url 'delete_group' group.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;color:#ef4444;border-color:#ef4444;" onclick="return confirm('Deactivate this group?')">Deactivate</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">No groups found. <a href="{% url 'create_group' %}">Create the first group →</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

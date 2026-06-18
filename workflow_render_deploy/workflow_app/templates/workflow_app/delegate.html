@@ -1,0 +1,77 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Delegate Authority{% endblock %}
+{% block header_title %}Delegate Approval Authority{% endblock %}
+{% block nav_delegate %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Delegate Approval Authority</div>
+    <div class="page-subtitle">Delegate your approval authority when on leave or unavailable</div>
+  </div>
+</div>
+
+{% if current_delegate %}
+<div class="alert alert-warning">
+  🔄 <strong>Active Delegation:</strong> Your approval authority is currently delegated to
+  <strong>{{ current_delegate.get_full_name }}</strong>
+  {% if delegate_until %}until {{ delegate_until|date:"d M Y H:i" }}{% endif %}.
+  <form method="post" action="{% url 'revoke_delegation' %}" style="display:inline;margin-left:12px;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline" style="padding:3px 12px;font-size:.8rem;color:#ef4444;border-color:#ef4444;" onclick="return confirm('Revoke delegation?')">Revoke</button>
+  </form>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Set Delegation</span></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Delegate To *</label>
+          <select name="delegate_to" class="form-control" required>
+            <option value="">— Select Approver —</option>
+            {% for a in approvers %}
+            <option value="{{ a.pk }}" {% if current_delegate.pk == a.pk %}selected{% endif %}>
+              {{ a.get_full_name|default:a.username }} ({{ a.get_role_display }})
+              {% if a.division %} — {{ a.division.name }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Delegate Until *</label>
+          <input type="datetime-local" name="delegate_until" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Authority Description</label>
+          <textarea name="delegation_authority" class="form-control" rows="3" placeholder="Describe the scope of delegated authority...">{{ request.user.delegation_authority }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Set Delegation</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">📋 Delegation History</span></div>
+    <div class="card-body" style="padding:0;">
+      <table class="data-table">
+        <thead><tr><th>Delegated To</th><th>Valid Until</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for log in delegation_logs %}
+          <tr>
+            <td>{{ log.acting_approver.get_full_name|default:log.acting_approver.username }}<br><small style="color:var(--text-muted);">{{ log.authority_description|truncatechars:40 }}</small></td>
+            <td style="font-size:.82rem;">{{ log.valid_until|date:"d M Y H:i" }}</td>
+            <td>{% if log.is_active %}<span class="badge badge-pending">Active</span>{% else %}<span class="badge badge-approved">Ended</span>{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted);">No delegation history.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

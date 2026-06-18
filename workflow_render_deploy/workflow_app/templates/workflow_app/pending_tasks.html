@@ -1,0 +1,165 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Pending Tasks ({{ total_count }}){% endblock %}
+{% block header_title %}Pending Tasks{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">⏳ Pending Tasks
+      <span class="badge badge-red" style="font-size:.85rem;padding:4px 12px;margin-left:8px;">{{ total_count }}</span>
+    </div>
+    <div class="page-subtitle">All approval actions waiting for you — individual and group</div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+  <div class="card-body" style="padding:14px 16px;">
+    <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+      <div class="form-group" style="margin:0;flex:2;min-width:180px;">
+        <label class="form-label">Search</label>
+        <input type="text" name="q" class="form-control" placeholder="Reference No. or subject..." value="{{ q }}">
+      </div>
+      <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+        <label class="form-label">Division</label>
+        <select name="division" class="form-control">
+          <option value="">All Divisions</option>
+          {% for div in divisions %}<option value="{{ div.pk }}" {% if division_filter == div.pk|stringformat:"s" %}selected{% endif %}>{{ div.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+        <label class="form-label">Requester</label>
+        <input type="text" name="requester" class="form-control" placeholder="Name..." value="{{ requester_filter }}">
+      </div>
+      <div class="form-group" style="margin:0;min-width:130px;">
+        <label class="form-label">From Date</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+      </div>
+      <div class="form-group" style="margin:0;min-width:130px;">
+        <label class="form-label">To Date</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+      </div>
+      <button type="submit" class="btn btn-primary">Filter</button>
+      <a href="{% url 'pending_tasks' %}" class="btn btn-outline">Clear</a>
+    </form>
+  </div>
+</div>
+
+<!-- Individual Pending Steps -->
+{% if individual_steps %}
+<div class="card mb-4">
+  <div class="card-header">
+    <span class="card-title">👤 Individual Approvals ({{ individual_steps|length }})</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Request ID</th><th>Request Title</th><th>Requester ID</th>
+          <th>Requester Name</th><th>Division</th><th>Workflow Type</th>
+          <th>Current Stage</th><th>Submitted</th><th>Due Date</th><th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for step in individual_steps %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.78rem;">{{ step.request.reference_number }}</span></td>
+          <td style="font-size:.85rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ step.request.subject }}</td>
+          <td style="font-size:.78rem;font-family:monospace;">{{ step.request.initiator.employee_id|default:"N/A" }}</td>
+          <td style="font-size:.85rem;">{{ step.request.initiator.get_full_name|default:step.request.initiator.username }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ step.request.division.name|default:"—" }}</td>
+          <td style="font-size:.78rem;">{{ step.request.category.name }}</td>
+          <td>
+            <span class="badge badge-in_progress" style="font-size:.72rem;">Step {{ step.step_number }}/{{ step.request.total_steps }}</span><br>
+            <span style="font-size:.72rem;color:var(--text-muted);">{{ step.get_approver_role_display }}</span>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ step.request.submitted_at|date:"d M Y"|default:"—" }}</td>
+          <td style="font-size:.78rem;{% if step.deadline and step.deadline < now %}color:#ef4444;font-weight:600;{% endif %}">{{ step.deadline|date:"d M Y"|default:"—" }}</td>
+          <td><span class="badge badge-pending">Pending</span></td>
+          <td>
+            <a href="{% url 'approval_action' step.pk %}" class="btn btn-amber" style="padding:5px 12px;font-size:.8rem;">Open Task</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Group Pending Steps -->
+{% if group_steps %}
+<div class="card mb-4">
+  <div class="card-header">
+    <span class="card-title">👥 Group Approvals ({{ group_steps|length }})</span>
+    <span style="font-size:.78rem;color:var(--text-muted);">Any member of the group can take action</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Request ID</th><th>Request Title</th><th>Requester</th>
+          <th>Division</th><th>Group</th><th>Stage</th>
+          <th>Submitted</th><th>Due Date</th><th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for step in group_steps %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.78rem;">{{ step.request.reference_number }}</span></td>
+          <td style="font-size:.85rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ step.request.subject }}</td>
+          <td style="font-size:.85rem;">{{ step.request.initiator.get_full_name|default:step.request.initiator.username }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ step.request.division.name|default:"—" }}</td>
+          <td>
+            <span class="badge badge-in_progress" style="font-size:.72rem;">👥 {{ step.group_assignment.group.name }}</span>
+          </td>
+          <td><span class="badge badge-in_progress" style="font-size:.72rem;">Step {{ step.step_number }}/{{ step.request.total_steps }}</span></td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ step.request.submitted_at|date:"d M Y"|default:"—" }}</td>
+          <td style="font-size:.78rem;">{{ step.deadline|date:"d M Y"|default:"—" }}</td>
+          <td><span class="badge badge-pending">Pending</span></td>
+          <td>
+            <a href="{% url 'group_approval_action' step.pk %}" class="btn btn-primary" style="padding:5px 12px;font-size:.8rem;">Open Task</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Delegated Steps -->
+{% if delegated_steps %}
+<div class="card mb-4">
+  <div class="card-header">
+    <span class="card-title">🔄 Delegated to You ({{ delegated_steps|length }})</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Request ID</th><th>Subject</th><th>Original Approver</th><th>Due</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for step in delegated_steps %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.78rem;">{{ step.request.reference_number }}</span></td>
+          <td style="font-size:.85rem;">{{ step.request.subject }}</td>
+          <td style="font-size:.85rem;">{{ step.approver.get_full_name|default:step.approver.username }}</td>
+          <td style="font-size:.78rem;">{{ step.deadline|date:"d M Y"|default:"—" }}</td>
+          <td><a href="{% url 'approval_action' step.pk %}" class="btn btn-outline" style="padding:5px 12px;font-size:.8rem;">Open Task</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if not individual_steps and not group_steps and not delegated_steps %}
+<div class="card">
+  <div class="card-body" style="text-align:center;padding:60px;">
+    <div style="font-size:3rem;margin-bottom:14px;">🎉</div>
+    <div style="font-size:1.1rem;font-weight:600;color:var(--text-primary);margin-bottom:6px;">No Pending Tasks</div>
+    <div style="font-size:.88rem;color:var(--text-muted);">You are all caught up! No approvals waiting for you.</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

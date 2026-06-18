@@ -1,0 +1,71 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block header_title %}My Dashboard{% endblock %}
+{% block nav_dash %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Welcome, {{ request.user.get_full_name|default:request.user.username }}</div>
+    <div class="page-subtitle">{{ request.user.get_role_display }}{% if request.user.designation %} · {{ request.user.designation }}{% endif %}{% if request.user.division %} · {{ request.user.division.name }}{% endif %}{% if request.user.branch %} · {{ request.user.branch.name }}{% endif %}</div>
+  </div>
+  <a href="{% url 'create_request' %}" class="btn btn-primary">✏️ New Request</a>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card violet"><div class="stat-label">In Progress</div><div class="stat-value">{{ pending_count }}</div><div class="stat-icon">⏳</div></div>
+  <div class="stat-card green"><div class="stat-label">Approved</div><div class="stat-value">{{ approved_count }}</div><div class="stat-icon">✅</div></div>
+  <div class="stat-card red"><div class="stat-label">Rejected</div><div class="stat-value">{{ rejected_count }}</div><div class="stat-icon">❌</div></div>
+  <div class="stat-card amber"><div class="stat-label">Drafts</div><div class="stat-value">{{ draft_count }}</div><div class="stat-icon">📝</div></div>
+</div>
+
+<!-- Quick Category Buttons -->
+<div class="card mb-4">
+  <div class="card-header"><span class="card-title">🚀 Quick Submit by Category</span></div>
+  <div class="card-body" style="display:flex;flex-wrap:wrap;gap:10px;">
+    {% for cat in categories|slice:":12" %}
+    <a href="{% url 'create_request' %}?cat={{ cat.pk }}" class="btn btn-outline" style="font-size:.82rem;padding:6px 14px;">
+      {% if cat.group == 'financial' %}💰{% elif cat.group == 'employee_benefits' %}🏥{% elif cat.group == 'operational' %}⚙️{% else %}📋{% endif %}
+      {{ cat.name }}
+    </a>
+    {% endfor %}
+    <a href="{% url 'create_request' %}" class="btn btn-amber" style="font-size:.82rem;padding:6px 14px;">✏️ Custom Request</a>
+  </div>
+</div>
+
+<!-- My Recent Requests -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📄 My Recent Requests</span>
+    <a href="{% url 'my_requests' %}" class="btn btn-outline" style="padding:4px 14px;font-size:.8rem;">View All</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Category</th><th>Status</th><th>Progress</th><th>Date</th><th></th></tr></thead>
+      <tbody>
+        {% for req in my_requests %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ req.reference_number }}</span></td>
+          <td style="font-size:.88rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ req.subject }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ req.category.name }}</td>
+          <td><span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span></td>
+          <td>
+            <div class="progress-bar"><div class="progress-fill" style="width:{% widthratio req.current_step req.total_steps 100 %}%"></div></div>
+            <div style="font-size:.72rem;color:var(--text-muted);">{{ req.current_step }}/{{ req.total_steps }}</div>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ req.created_at|date:"M d, Y" }}</td>
+          <td style="display:flex;gap:6px;">
+            <a href="{% url 'request_detail' req.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">View</a>
+            {% if req.status in 'approved,payment_pending,payment_released' %}
+            <a href="{% url 'generate_pdf' req.pk %}" target="_blank" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">📄 PDF</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">No requests yet. <a href="{% url 'create_request' %}">Create your first →</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

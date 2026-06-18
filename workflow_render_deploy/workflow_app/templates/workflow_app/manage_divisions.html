@@ -1,0 +1,61 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Manage Divisions{% endblock %}
+{% block header_title %}Division Management{% endblock %}
+{% block nav_divisions %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Divisions</div>
+    <div class="page-subtitle">Manage organizational divisions of Trust Bank PLC</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:24px;">
+  <!-- Add Division Form -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">➕ Add New Division</span></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Division Name *</label>
+          <input type="text" name="name" class="form-control" placeholder="e.g. IT Division" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Division Head Name</label>
+          <input type="text" name="head_name" class="form-control" placeholder="e.g. Faruk Hasan">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-control" rows="3" placeholder="Division description..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Create Division</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Division List -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">🏢 All Divisions ({{ divisions|length }})</span></div>
+    <div class="card-body" style="padding:0;">
+      <table class="data-table">
+        <thead><tr><th>Division Name</th><th>Head</th><th>Staff</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for div in divisions %}
+          <tr>
+            <td><strong>{{ div.name }}</strong></td>
+            <td>{{ div.head_name|default:"—" }}</td>
+            <td><span class="badge badge-in_progress">{{ div.user_count }} users</span></td>
+            <td>{% if div.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-rejected">Inactive</span>{% endif %}</td>
+            <td><a href="{% url 'edit_division' div.pk %}" class="btn btn-outline" style="padding:4px 12px;font-size:.78rem;">Edit</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">No divisions yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

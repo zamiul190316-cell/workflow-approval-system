@@ -1,0 +1,78 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Register{% endblock %}
+{% block header_title %}Register New User{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;margin:0 auto;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">🏦 Trust Bank PLC — New Account</span></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input type="text" name="first_name" class="form-control" placeholder="First name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input type="text" name="last_name" class="form-control" placeholder="Last name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Username <span style="color:#ef4444;">*</span></label>
+            <input type="text" name="username" class="form-control" placeholder="Username" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Employee ID</label>
+            <input type="text" name="employee_id" class="form-control" placeholder="e.g. TBL-00123">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <span style="color:#ef4444;">*</span></label>
+            <input type="email" name="email" class="form-control" placeholder="Email address" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-control" placeholder="Phone number">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password <span style="color:#ef4444;">*</span></label>
+            <input type="password" name="password" class="form-control" placeholder="Password" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Designation</label>
+            <input type="text" name="designation" class="form-control" placeholder="e.g. Senior Officer">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <select name="role" class="form-control">
+              {% for val, label in roles %}<option value="{{ val }}">{{ label }}</option>{% empty %}
+              <option value="initiator">Initiator</option>
+              <option value="approver">Approver</option>
+              <option value="admin">Administrator</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Division</label>
+            <select name="division" class="form-control">
+              <option value="">— Optional —</option>
+              {% for div in divisions %}<option value="{{ div.pk }}">{{ div.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">Branch</label>
+            <select name="branch" class="form-control">
+              <option value="">— Optional —</option>
+              {% for br in branches %}<option value="{{ br.pk }}">{{ br.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">Create Account</button>
+        <div style="text-align:center;margin-top:14px;font-size:.88rem;">
+          Already have an account? <a href="{% url 'login' %}">Sign in →</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

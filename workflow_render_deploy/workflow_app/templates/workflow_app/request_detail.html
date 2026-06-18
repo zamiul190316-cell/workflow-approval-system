@@ -1,0 +1,300 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}{{ req.reference_number }}{% endblock %}
+{% block header_title %}Request Detail{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex align-center gap-3">
+      <span class="ref-number" style="font-size:1rem;">{{ req.reference_number }}</span>
+      <span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span>
+      {% if req.is_sla_breached %}<span class="badge badge-red">⚠️ SLA Breached</span>{% endif %}
+      <span style="font-size:.78rem;color:var(--text-muted);">v{{ req.version }}</span>
+    </div>
+    <div class="page-title mt-2">{{ req.subject }}</div>
+    <div class="page-subtitle">{{ req.category.get_group_display }} › {{ req.category.name }}</div>
+  </div>
+  <div class="d-flex gap-3" style="flex-wrap:wrap;">
+    {% if can_edit %}<a href="{% url 'edit_request' req.pk %}" class="btn btn-outline">✏️ Edit</a>{% endif %}
+    {% if can_submit %}
+    <form method="post" action="{% url 'submit_request' req.pk %}" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-amber" onclick="return confirm('Submit for approval?')">🚀 Submit</button>
+    </form>
+    {% endif %}
+    {% if can_setup_payment %}<a href="{% url 'payment_setup' req.pk %}" class="btn btn-success">💰 Setup Payment</a>{% endif %}
+    {% if can_download_pdf %}
+    <div style="position:relative;">
+      <button class="btn btn-primary" onclick="document.getElementById('pdfMenu').classList.toggle('open')" style="display:flex;align-items:center;gap:6px;">
+        📄 Download PDF ▾
+      </button>
+      <div id="pdfMenu" class="notif-dropdown" style="width:200px;right:0;top:44px;">
+        <div class="notif-list">
+          <a href="{% url 'generate_pdf' req.pk %}?mode=system" class="notif-item" target="_blank" style="display:block;text-decoration:none;color:inherit;">📋 System Generated</a>
+          <a href="{% url 'generate_pdf' req.pk %}?mode=manual" class="notif-item" target="_blank" style="display:block;text-decoration:none;color:inherit;">✍️ Manual Signature</a>
+          <a href="{% url 'generate_pdf' req.pk %}?mode=digital" class="notif-item" target="_blank" style="display:block;text-decoration:none;color:inherit;">🔐 Digital Signature</a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Progress Tracker -->
+<div class="card mb-4">
+  <div class="card-header"><span class="card-title">📊 Approval Progress — Step {{ req.current_step }} of {{ req.total_steps }}</span></div>
+  <div class="card-body">
+    <div class="step-tracker">
+      {% for step in steps %}
+      <div class="step-item {% if step.status == 'approved' %}done{% elif step.status == 'rejected' %}rejected{% elif step.status == 'returned' %}returned{% elif step.step_number == req.current_step %}active{% endif %}">
+        <div class="step-circle">
+          {% if step.status == 'approved' %}✓
+          {% elif step.status == 'rejected' %}✕
+          {% elif step.status == 'returned' %}↩
+          {% else %}{{ step.step_number }}{% endif %}
+        </div>
+        <div class="step-label">
+          {{ step.approver.first_name|default:step.approver.username }}<br>
+          <span style="font-size:.65rem;opacity:.7;">{{ step.get_approver_role_display }}</span>
+          {% if step.acting_approver %}<br><span style="font-size:.6rem;color:var(--amber-accent);">via {{ step.acting_approver.first_name }}</span>{% endif %}
+        </div>
+        {% if can_add_approver and step.status == 'pending' %}
+        <form method="post" action="{% url 'remove_approver_dynamic' req.pk step.pk %}" style="display:inline;" onsubmit="return confirm('Remove this approver?')">
+          {% csrf_token %}
+          <button type="submit" title="Remove step" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:.75rem;position:absolute;top:-4px;right:-4px;">✕</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Dynamic Add Approver (Admin only, active requests) -->
+{% if can_add_approver %}
+<div class="card mb-4">
+  <div class="card-header">
+    <span class="card-title">➕ Add Approver Dynamically</span>
+    <button class="btn btn-outline" style="padding:4px 14px;font-size:.8rem;" onclick="document.getElementById('addApproverForm').classList.toggle('d-none')">Add</button>
+  </div>
+  <div id="addApproverForm" class="d-none">
+    <div class="card-body">
+      <form method="post" action="{% url 'add_approver_dynamic' req.pk %}" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end;">
+        {% csrf_token %}
+        <div>
+          <label class="form-label">Approver</label>
+          <select name="approver_id" class="form-control" required>
+            <option value="">— Select —</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Role</label>
+          <select name="approver_role" class="form-control">
+            {% for r in steps.0.APPROVER_ROLE_CHOICES|default:"" %}{% endfor %}
+            <option value="checker">Checker</option>
+            <option value="maker">Maker</option>
+            <option value="head_office">Head Office</option>
+            <option value="compliance">Compliance</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Insert After Step</label>
+          <select name="insert_after" class="form-control">
+            {% for step in steps %}<option value="{{ step.step_number }}">After step {{ step.step_number }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;">
+  <div>
+    <!-- Request Info -->
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">📄 Request Information</span></div>
+      <div class="card-body">
+        <table style="width:100%;">
+          <tr><td class="info-td-label">Reference No.</td><td><span class="ref-number">{{ req.reference_number }}</span></td></tr>
+          <tr><td class="info-td-label">Date</td><td>{{ req.date|date:"F d, Y" }}</td></tr>
+          <tr><td class="info-td-label">Category</td><td>{{ req.category.get_group_display }} › {{ req.category.name }}</td></tr>
+          <tr><td class="info-td-label">Initiated By</td><td>{{ req.initiator.get_full_name|default:req.initiator.username }} ({{ req.initiator.employee_id|default:"N/A" }})</td></tr>
+          {% if req.division %}<tr><td class="info-td-label">Division</td><td>{{ req.division.name }}</td></tr>{% endif %}
+          {% if req.branch %}<tr><td class="info-td-label">Branch</td><td>{{ req.branch.name }}</td></tr>{% endif %}
+          {% if req.amount %}<tr><td class="info-td-label">Amount</td><td style="font-weight:600;color:var(--green-accent);">{{ req.currency }} {{ req.amount|floatformat:2 }}</td></tr>{% endif %}
+          {% if req.submitted_at %}<tr><td class="info-td-label">Submitted</td><td>{{ req.submitted_at|date:"d M Y H:i" }}</td></tr>{% endif %}
+          {% if req.sla_deadline %}<tr><td class="info-td-label">SLA Deadline</td><td {% if req.is_sla_breached %}style="color:#ef4444;font-weight:600;"{% endif %}>{{ req.sla_deadline|date:"d M Y H:i" }}</td></tr>{% endif %}
+          <tr><td class="info-td-label">Audit ID</td><td><code style="font-size:.72rem;">{{ req.audit_id }}</code></td></tr>
+        </table>
+        <div style="margin-top:16px;">
+          <div style="font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:8px;">DESCRIPTION</div>
+          <div style="background:var(--bg-secondary);padding:14px;border-radius:8px;font-size:.88rem;line-height:1.7;">{{ req.description }}</div>
+        </div>
+        {% if req.attachments_note %}
+        <div style="margin-top:12px;padding:10px;background:var(--bg-secondary);border-radius:6px;font-size:.82rem;">
+          📎 <strong>Attachments:</strong> {{ req.attachments_note }}
+        </div>
+        {% endif %}
+        {% if req.attachment_file %}
+        <div style="margin-top:8px;"><a href="{{ req.attachment_file.url }}" class="btn btn-outline" style="padding:6px 14px;font-size:.82rem;" target="_blank">📎 View Attachment</a></div>
+        {% endif %}
+        {% if req.rejection_reason %}
+        <div class="alert alert-error" style="margin-top:12px;">
+          <strong>{% if req.status == 'returned' %}↩️ Return Reason{% else %}❌ Rejection Reason{% endif %}:</strong> {{ req.rejection_reason }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Approval Steps Detail -->
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">👥 Approval Steps</span></div>
+      <div class="card-body" style="padding:0;">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Approver</th><th>Role</th><th>Status</th><th>Acted On</th><th>Comment</th></tr></thead>
+          <tbody>
+            {% for step in steps %}
+            <tr>
+              <td>{{ step.step_number }}</td>
+              <td>
+                <strong>{{ step.approver.get_full_name|default:step.approver.username }}</strong><br>
+                <small style="color:var(--text-muted);">{{ step.approver.employee_id|default:"" }} · {{ step.approver.designation|default:"" }}</small>
+                {% if step.acting_approver %}<br><small style="color:var(--amber-accent);">Acting: {{ step.acting_approver.get_full_name }}</small>{% endif %}
+              </td>
+              <td><span class="badge badge-in_progress" style="font-size:.72rem;">{{ step.get_approver_role_display }}</span></td>
+              <td><span class="badge badge-{{ step.status }}">{{ step.get_status_display }}</span></td>
+              <td style="font-size:.82rem;">{{ step.action_taken_at|date:"d M Y H:i"|default:"—" }}</td>
+              <td style="font-size:.82rem;max-width:200px;">{{ step.comment|truncatechars:80|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">🕐 Activity Timeline</span></div>
+      <div class="card-body">
+        {% for h in history %}
+        <div style="display:flex;gap:12px;margin-bottom:16px;padding-bottom:16px;{% if not forloop.last %}border-bottom:1px solid var(--border-color);{% endif %}">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">
+            {% if 'approved' in h.action %}✅{% elif 'rejected' in h.action %}❌{% elif 'returned' in h.action %}↩️{% elif h.action == 'submitted' %}🚀{% elif h.action == 'created' %}📝{% elif h.action == 'pdf_generated' %}📄{% else %}💬{% endif %}
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:.88rem;font-weight:600;">{{ h.get_action_display }}</div>
+            <div style="font-size:.8rem;color:var(--text-muted);">{{ h.actor.get_full_name|default:h.actor.username }} — {{ h.timestamp|date:"d M Y H:i" }}</div>
+            {% if h.comment %}<div style="font-size:.82rem;margin-top:4px;padding:6px 10px;background:var(--bg-secondary);border-radius:6px;">{{ h.comment }}</div>{% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;color:var(--text-muted);">No history yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div>
+    <!-- Version History -->
+    {% if versions %}
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">🗂️ Version History</span></div>
+      <div class="card-body" style="padding:0;">
+        <table class="data-table">
+          <thead><tr><th>Version</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for v in versions %}
+            <tr>
+              <td>v{{ v.version_number }}</td>
+              <td><span class="badge badge-{{ v.status_snapshot }}" style="font-size:.68rem;">{{ v.status_snapshot|title }}</span></td>
+              <td style="font-size:.78rem;">{{ v.saved_at|date:"d M Y" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Payment Info -->
+    {% if payment %}
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">💰 Payment</span></div>
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:.82rem;color:var(--text-muted);">Type</span>
+          <span style="font-size:.88rem;">{{ payment.get_payment_type_display }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:.82rem;color:var(--text-muted);">Amount</span>
+          <span style="font-size:1rem;font-weight:700;color:var(--green-accent);">{{ payment.currency }} {{ payment.total_amount|floatformat:2 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:.82rem;color:var(--text-muted);">Status</span>
+          <span class="badge badge-{{ payment.status }}">{{ payment.get_status_display }}</span>
+        </div>
+        {% if payment.payment_type == 'partial' %}
+        {% for inst in payment.installments.all %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg-secondary);border-radius:6px;margin-bottom:6px;">
+          <span style="font-size:.8rem;">Inst. {{ inst.installment_number }}: {{ payment.currency }} {{ inst.amount|floatformat:2 }}</span>
+          <span class="badge badge-{{ inst.status }}" style="font-size:.7rem;">{{ inst.get_status_display }}</span>
+          {% if inst.status == 'pending' and request.user.role == 'admin' %}
+          <form method="post" action="{% url 'release_installment' payment.pk inst.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success" style="padding:3px 8px;font-size:.72rem;">Release</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% elif payment.status == 'pending' and request.user.role == 'admin' %}
+        <form method="post" action="{% url 'payment_release' payment.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-success" style="width:100%;" onclick="return confirm('Release full payment?')">💸 Release Payment</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Info Card -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">📌 Quick Info</span></div>
+      <div class="card-body">
+        <div style="font-size:.82rem;line-height:2;">
+          <div>📅 Created: {{ req.created_at|date:"d M Y" }}</div>
+          <div>📋 PDF Mode: {{ req.get_pdf_mode_display }}</div>
+          <div>🔢 Total Steps: {{ req.total_steps }}</div>
+          {% if req.completed_at %}<div>✅ Completed: {{ req.completed_at|date:"d M Y H:i" }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.info-td-label { width:140px;padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted); }
+</style>
+
+<script>
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#pdfMenu') && !e.target.closest('[onclick*="pdfMenu"]'))
+    document.getElementById('pdfMenu')?.classList.remove('open');
+});
+// Populate add-approver dropdown via AJAX
+const addApproverSelect = document.querySelector('#addApproverForm select[name="approver_id"]');
+if (addApproverSelect) {
+  fetch('/api/users/').then(r=>r.json()).then(d=>{
+    d.users.forEach(u => {
+      const o = document.createElement('option');
+      o.value = u.id;
+      o.textContent = `${u.name} (${u.employee_id}) — ${u.designation}`;
+      addApproverSelect.appendChild(o);
+    });
+  });
+}
+</script>
+{% endblock %}

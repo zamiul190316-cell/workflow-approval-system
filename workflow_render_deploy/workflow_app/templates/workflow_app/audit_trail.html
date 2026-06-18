@@ -1,0 +1,66 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Audit Trail{% endblock %}
+{% block header_title %}Audit Trail{% endblock %}
+{% block nav_audit %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Audit Trail</div><div class="page-subtitle">Complete immutable log of all system actions</div></div>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+  <div class="card-body" style="padding:12px 16px;">
+    <form method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <div class="form-group" style="margin:0;flex:1;min-width:200px;">
+        <select name="action" class="form-control" onchange="this.form.submit()">
+          <option value="">All Actions</option>
+          {% for val, label in action_choices %}<option value="{{ val }}" {% if action_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <a href="{% url 'audit_trail' %}" class="btn btn-outline">Clear</a>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead>
+        <tr><th>Timestamp</th><th>Reference</th><th>Action</th><th>Actor</th><th>Role</th><th>IP Address</th><th>Comment</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="font-size:.78rem;white-space:nowrap;">{{ log.timestamp|date:"d M Y H:i:s" }}</td>
+          <td>
+            {% if log.request %}
+            <a href="{% url 'request_detail' log.request.pk %}"><span class="ref-number" style="font-size:.78rem;">{{ log.request.reference_number }}</span></a>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <span class="badge {% if 'approved' in log.action %}badge-approved{% elif 'rejected' in log.action %}badge-rejected{% elif 'returned' in log.action %}badge-returned{% elif log.action == 'created' or log.action == 'submitted' %}badge-in_progress{% else %}badge-draft{% endif %}" style="font-size:.72rem;">
+              {{ log.get_action_display }}
+            </span>
+          </td>
+          <td style="font-size:.85rem;">
+            <strong>{{ log.actor.get_full_name|default:log.actor.username }}</strong><br>
+            <small style="color:var(--text-muted);">{{ log.actor.employee_id|default:"" }}</small>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ log.actor.get_role_display }}</td>
+          <td style="font-size:.78rem;font-family:monospace;color:var(--text-muted);">{{ log.ip_address|default:"—" }}</td>
+          <td style="font-size:.82rem;max-width:200px;">{{ log.comment|truncatechars:60|default:"—" }}</td>
+          <td>
+            {% if log.request %}
+            <a href="{% url 'request_detail' log.request.pk %}" class="btn btn-outline" style="padding:3px 8px;font-size:.72rem;">View</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">No audit logs found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

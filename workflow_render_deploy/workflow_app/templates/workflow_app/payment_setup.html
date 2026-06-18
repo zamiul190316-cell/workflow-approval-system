@@ -1,0 +1,102 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Payment Setup{% endblock %}
+{% block header_title %}Setup Payment{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Configure Payment</div>
+    <div class="page-subtitle">{{ req.reference_number }} — {{ req.subject }}</div>
+  </div>
+  <a href="{% url 'request_detail' req.pk %}" class="btn btn-outline">← Back</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">💰 Payment Configuration</span></div>
+    <div class="card-body">
+      <form method="post" id="paymentForm">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Payment Type</label>
+          <select name="payment_type" class="form-control" id="paymentType" onchange="toggleInstallments()">
+            <option value="full">Full Payment (Single)</option>
+            <option value="partial">Partial Payment (Installments)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Total Amount ({{ req.currency }})</label>
+          <input type="number" name="total_amount" class="form-control" step="0.01"
+            value="{{ req.amount|default:'' }}" placeholder="0.00" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Currency</label>
+          <select name="currency" class="form-control">
+            <option value="BDT" selected>BDT (Taka)</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+        <div id="installmentSection" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Number of Installments</label>
+            <input type="number" name="number_of_installments" class="form-control"
+              id="numInstallments" min="2" max="60" value="3" onchange="buildInstallmentFields()">
+          </div>
+          <div id="installmentFields"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="3" placeholder="Payment instructions, bank details..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-success" style="width:100%;font-size:1rem;padding:12px;">💰 Configure Payment</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">📄 Request Summary</span></div>
+    <div class="card-body">
+      <table style="width:100%;">
+        <tr><td style="padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);width:130px;">Reference</td><td><span class="ref-number" style="font-size:.85rem;">{{ req.reference_number }}</span></td></tr>
+        <tr><td style="padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Subject</td><td style="font-size:.88rem;">{{ req.subject }}</td></tr>
+        <tr><td style="padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Category</td><td style="font-size:.88rem;">{{ req.category.name }}</td></tr>
+        <tr><td style="padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Status</td><td><span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span></td></tr>
+        <tr><td style="padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Approved</td><td style="font-size:.88rem;">{{ req.completed_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Total Steps</td><td style="font-size:.88rem;">{{ req.total_steps }} approvers</td></tr>
+        {% if req.amount %}<tr><td style="padding:8px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Requested Amt</td><td style="font-size:1rem;font-weight:700;color:var(--green-accent);">{{ req.currency }} {{ req.amount|floatformat:2 }}</td></tr>{% endif %}
+      </table>
+      <div style="margin-top:20px;padding:14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;">
+        <div style="font-size:.82rem;color:var(--green-accent);font-weight:600;">✅ Fully Approved</div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px;">This request has been approved by all {{ req.total_steps }} approvers and is ready for payment processing.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleInstallments() {
+  const type = document.getElementById('paymentType').value;
+  document.getElementById('installmentSection').style.display = type === 'partial' ? 'block' : 'none';
+  if (type === 'partial') buildInstallmentFields();
+}
+function buildInstallmentFields() {
+  const n = parseInt(document.getElementById('numInstallments').value) || 3;
+  const container = document.getElementById('installmentFields');
+  container.innerHTML = '';
+  for (let i = 1; i <= n; i++) {
+    container.innerHTML += `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;padding:10px;background:var(--bg-secondary);border-radius:6px;">
+        <div>
+          <label class="form-label" style="font-size:.72rem;">Installment ${i} Amount</label>
+          <input type="number" name="installment_amount_${i}" class="form-control" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:.72rem;">Due Date</label>
+          <input type="date" name="installment_due_${i}" class="form-control">
+        </div>
+      </div>`;
+  }
+}
+</script>
+{% endblock %}

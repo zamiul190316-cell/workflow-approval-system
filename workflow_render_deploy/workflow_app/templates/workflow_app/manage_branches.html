@@ -1,0 +1,67 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Manage Branches{% endblock %}
+{% block header_title %}Branch Management{% endblock %}
+{% block nav_branches %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Branches</div>
+    <div class="page-subtitle">Manage all Trust Bank PLC branches</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">➕ Add New Branch</span></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Branch Name *</label>
+          <input type="text" name="name" class="form-control" placeholder="e.g. Agrabad Branch" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Branch Code</label>
+          <input type="text" name="code" class="form-control" placeholder="e.g. AGR001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Address</label>
+          <textarea name="address" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Branch Manager</label>
+          <select name="manager_id" class="form-control">
+            <option value="">— Select Manager —</option>
+            {% for m in managers %}<option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Create Branch</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">🏛️ All Branches ({{ branches|length }})</span></div>
+    <div class="card-body" style="padding:0;">
+      <table class="data-table">
+        <thead><tr><th>Branch Name</th><th>Code</th><th>Manager</th><th>Staff</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for branch in branches %}
+          <tr>
+            <td><strong>{{ branch.name }}</strong></td>
+            <td><code>{{ branch.code|default:"—" }}</code></td>
+            <td>{{ branch.manager.get_full_name|default:"—" }}</td>
+            <td><span class="badge badge-in_progress">{{ branch.user_count }}</span></td>
+            <td>{% if branch.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-rejected">Inactive</span>{% endif %}</td>
+            <td><a href="{% url 'edit_branch' branch.pk %}" class="btn btn-outline" style="padding:4px 12px;font-size:.78rem;">Edit</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">No branches yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

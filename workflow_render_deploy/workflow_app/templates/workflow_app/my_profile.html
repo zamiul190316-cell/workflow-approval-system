@@ -1,0 +1,80 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}My Profile{% endblock %}
+{% block header_title %}My Profile{% endblock %}
+{% block nav_profile %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">My Profile</div><div class="page-subtitle">Update your account information and signature</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">👤 Personal Information</span></div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input type="text" name="first_name" class="form-control" value="{{ user_obj.first_name }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input type="text" name="last_name" class="form-control" value="{{ user_obj.last_name }}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" value="{{ user_obj.email }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" name="phone" class="form-control" value="{{ user_obj.phone }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Designation</label>
+          <input type="text" name="designation" class="form-control" value="{{ user_obj.designation }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Signature Image (PNG/JPG)</label>
+          {% if user_obj.signature_image %}
+          <div style="margin-bottom:8px;padding:8px;background:var(--bg-secondary);border-radius:6px;">
+            <img src="{{ user_obj.signature_image.url }}" alt="Signature" style="max-height:60px;max-width:200px;">
+            <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">Current signature</div>
+          </div>
+          {% endif %}
+          <input type="file" name="signature_image" class="form-control" accept="image/*">
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Password (leave blank to keep current)</label>
+          <input type="password" name="new_password" class="form-control" placeholder="New password...">
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">ℹ️ Account Details</span></div>
+    <div class="card-body">
+      <table style="width:100%;">
+        {% for label, val in profile_data %}
+        <tr>
+          <td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);width:140px;">{{ label }}</td>
+          <td style="padding:10px 0;">{{ val|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Employee ID</td><td>{{ user_obj.employee_id|default:"—" }}</td></tr>
+        <tr><td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Username</td><td>{{ user_obj.username }}</td></tr>
+        <tr><td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Role</td><td><span class="badge badge-in_progress">{{ user_obj.get_role_display }}</span></td></tr>
+        <tr><td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Division</td><td>{{ user_obj.division.name|default:"—" }}</td></tr>
+        <tr><td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Branch</td><td>{{ user_obj.branch.name|default:"—" }}</td></tr>
+        <tr><td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Member Since</td><td>{{ user_obj.created_at|date:"F d, Y" }}</td></tr>
+        <tr><td style="padding:10px 0;font-size:.82rem;font-weight:600;color:var(--text-muted);">Available</td><td>{% if user_obj.is_available_for_approval %}<span class="badge badge-approved">Available</span>{% else %}<span class="badge badge-rejected">Unavailable</span>{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

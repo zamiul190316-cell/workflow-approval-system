@@ -1,0 +1,71 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}SLA Monitor{% endblock %}
+{% block header_title %}SLA Monitor{% endblock %}
+{% block nav_sla %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">SLA Monitoring</div><div class="page-subtitle">Track service level agreement compliance for all active requests</div></div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card red"><div class="stat-label">SLA Breached</div><div class="stat-value">{{ breached|length }}</div><div class="stat-icon">🔴</div></div>
+  <div class="stat-card green"><div class="stat-label">On Time</div><div class="stat-value">{{ on_time|length }}</div><div class="stat-icon">✅</div></div>
+  <div class="stat-card amber"><div class="stat-label">Total Active</div><div class="stat-value">{{ breached|length|add:on_time|length }}</div><div class="stat-icon">⏱️</div></div>
+</div>
+
+{% if breached %}
+<div class="card mb-4" style="border-color:#ef4444;">
+  <div class="card-header" style="background:rgba(239,68,68,.08);">
+    <span class="card-title" style="color:#ef4444;">🔴 SLA Breached ({{ breached|length }})</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Initiator</th><th>Category</th><th>SLA Deadline</th><th>Overdue By</th><th>Current Step</th><th></th></tr></thead>
+      <tbody>
+        {% for req in breached %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ req.reference_number }}</span></td>
+          <td style="font-size:.88rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ req.subject }}</td>
+          <td style="font-size:.85rem;">{{ req.initiator.get_full_name|default:req.initiator.username }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ req.category.name }}</td>
+          <td style="font-size:.82rem;color:#ef4444;font-weight:600;">{{ req.sla_deadline|date:"d M Y H:i" }}</td>
+          <td style="font-size:.82rem;color:#ef4444;">{{ req.sla_deadline|timesince }} ago</td>
+          <td>
+            {% with step=req.steps.filter.first %}
+            <span class="badge badge-pending">Step {{ req.current_step }}/{{ req.total_steps }}</span>
+            {% endwith %}
+          </td>
+          <td><a href="{% url 'request_detail' req.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><span class="card-title">✅ On Time ({{ on_time|length }})</span></div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Category</th><th>Status</th><th>SLA Deadline</th><th>Time Remaining</th><th></th></tr></thead>
+      <tbody>
+        {% for req in on_time %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ req.reference_number }}</span></td>
+          <td style="font-size:.88rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ req.subject }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ req.category.name }}</td>
+          <td><span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span></td>
+          <td style="font-size:.82rem;">{{ req.sla_deadline|date:"d M Y H:i"|default:"—" }}</td>
+          <td style="font-size:.82rem;color:var(--green-accent);">{% if req.sla_deadline %}{{ req.sla_deadline|timeuntil }}{% else %}—{% endif %}</td>
+          <td><a href="{% url 'request_detail' req.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">No active requests on time.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

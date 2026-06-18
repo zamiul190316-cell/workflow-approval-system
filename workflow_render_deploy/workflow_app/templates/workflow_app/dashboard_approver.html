@@ -1,0 +1,107 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Approver Dashboard{% endblock %}
+{% block header_title %}Approver Dashboard{% endblock %}
+{% block nav_dash_approver %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Welcome, {{ request.user.get_full_name|default:request.user.username }}</div>
+    <div class="page-subtitle">{{ request.user.get_role_display }}{% if request.user.division %} · {{ request.user.division.name }}{% endif %}{% if request.user.branch %} · {{ request.user.branch.name }}{% endif %}</div>
+  </div>
+  {% if request.user.on_leave %}<span class="badge badge-red" style="font-size:.85rem;padding:6px 14px;">🏖️ Currently On Leave</span>{% endif %}
+</div>
+
+{% if request.user.delegate_to %}
+<div class="alert alert-warning">
+  🔄 You have delegated approval authority to <strong>{{ request.user.delegate_to.get_full_name }}</strong>
+  {% if request.user.delegate_until %}until {{ request.user.delegate_until|date:"d M Y H:i" }}{% endif %}.
+  <a href="{% url 'delegate_approval' %}" style="color:inherit;font-weight:700;margin-left:8px;">Manage →</a>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card amber"><div class="stat-label">Pending Actions</div><div class="stat-value">{{ pending_count }}</div><div class="stat-icon">⏳</div></div>
+  <div class="stat-card green"><div class="stat-label">Approved</div><div class="stat-value">{{ approved_count }}</div><div class="stat-icon">✅</div></div>
+  <div class="stat-card red"><div class="stat-label">Rejected</div><div class="stat-value">{{ rejected_count }}</div><div class="stat-icon">❌</div></div>
+  <div class="stat-card blue"><div class="stat-label">Delegated to Me</div><div class="stat-value">{{ delegated_steps|length }}</div><div class="stat-icon">🔄</div></div>
+</div>
+
+<!-- Pending Approvals -->
+<div class="card mb-4">
+  <div class="card-header">
+    <span class="card-title">⏳ Pending Your Approval ({{ pending_count }})</span>
+    <a href="{% url 'pending_approvals' %}" class="btn btn-outline" style="padding:4px 14px;font-size:.8rem;">View All</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Category</th><th>Initiator</th><th>Your Role</th><th>Deadline</th><th>SLA</th><th></th></tr></thead>
+      <tbody>
+        {% for step in pending_steps|slice:":8" %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ step.request.reference_number }}</span></td>
+          <td style="font-size:.88rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ step.request.subject }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ step.request.category.name }}</td>
+          <td style="font-size:.85rem;">{{ step.request.initiator.get_full_name|default:step.request.initiator.username }}</td>
+          <td><span class="badge badge-in_progress" style="font-size:.72rem;">{{ step.get_approver_role_display }}</span></td>
+          <td style="font-size:.82rem;{% if step.deadline and step.deadline < now %}color:#ef4444;font-weight:600;{% endif %}">{{ step.deadline|date:"d M Y"|default:"—" }}</td>
+          <td>{% if step.request.is_sla_breached %}<span class="badge badge-red" style="font-size:.7rem;">Breached</span>{% else %}<span class="badge badge-approved" style="font-size:.7rem;">OK</span>{% endif %}</td>
+          <td><a href="{% url 'approval_action' step.pk %}" class="btn btn-amber" style="padding:5px 12px;font-size:.8rem;">Review</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">🎉 No pending approvals</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Delegated to Me -->
+{% if delegated_steps %}
+<div class="card mb-4">
+  <div class="card-header"><span class="card-title">🔄 Delegated to You</span></div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Original Approver</th><th>Role</th><th></th></tr></thead>
+      <tbody>
+        {% for step in delegated_steps %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ step.request.reference_number }}</span></td>
+          <td style="font-size:.88rem;">{{ step.request.subject }}</td>
+          <td style="font-size:.85rem;">{{ step.approver.get_full_name|default:step.approver.username }}</td>
+          <td><span class="badge badge-in_progress" style="font-size:.72rem;">{{ step.get_approver_role_display }}</span></td>
+          <td><a href="{% url 'approval_action' step.pk %}" class="btn btn-outline" style="padding:5px 12px;font-size:.8rem;">Review</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Recent History -->
+{% if recent_history %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📜 Recent Actions</span>
+    <a href="{% url 'approval_history' %}" class="btn btn-outline" style="padding:4px 14px;font-size:.8rem;">Full History</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Action</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for step in recent_history %}
+        <tr>
+          <td><a href="{% url 'request_detail' step.request.pk %}" style="color:var(--blue-accent);"><span class="ref-number" style="font-size:.82rem;">{{ step.request.reference_number }}</span></a></td>
+          <td style="font-size:.88rem;">{{ step.request.subject }}</td>
+          <td><span class="badge badge-{{ step.status }}">{{ step.get_status_display }}</span></td>
+          <td style="font-size:.82rem;color:var(--text-muted);">{{ step.action_taken_at|date:"d M Y H:i"|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

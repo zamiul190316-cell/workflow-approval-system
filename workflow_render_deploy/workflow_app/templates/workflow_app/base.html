@@ -1,0 +1,155 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Trust Bank PLC — Workflow System{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'workflow_app/css/main.css' %}">
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🏦</div>
+      <div class="brand-name">Trust Bank PLC</div>
+      <div class="brand-sub">Workflow Approval System</div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
+      <div>
+        <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+        <div class="user-role">{{ request.user.get_role_display }}</div>
+        {% if request.user.division %}
+        <div class="user-role" style="font-size:.68rem;opacity:.7;">{{ request.user.division.name }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      {% if request.user.role == 'admin' %}
+        <div class="nav-section-label">Administration</div>
+        <a href="{% url 'admin_dashboard' %}" class="nav-item {% block nav_admin %}{% endblock %}"><span class="nav-icon">⚙️</span> Admin Dashboard</a>
+        <a href="{% url 'manage_users' %}" class="nav-item {% block nav_users %}{% endblock %}"><span class="nav-icon">👥</span> User Management</a>
+        <a href="{% url 'manage_divisions' %}" class="nav-item {% block nav_divisions %}{% endblock %}"><span class="nav-icon">🏢</span> Divisions</a>
+        <a href="{% url 'manage_branches' %}" class="nav-item {% block nav_branches %}{% endblock %}"><span class="nav-icon">🏛️</span> Branches</a>
+        <a href="{% url 'manage_templates' %}" class="nav-item {% block nav_templates %}{% endblock %}"><span class="nav-icon">📋</span> Workflow Templates</a>
+        <a href="{% url 'manage_leaves' %}" class="nav-item {% block nav_leaves %}{% endblock %}"><span class="nav-icon">🏖️</span> Leave Management</a>
+        <div class="nav-section-label">Monitoring</div>
+        <a href="{% url 'audit_trail' %}" class="nav-item {% block nav_audit %}{% endblock %}"><span class="nav-icon">🔍</span> Audit Trail</a>
+        <a href="{% url 'sla_monitor' %}" class="nav-item {% block nav_sla %}{% endblock %}"><span class="nav-icon">⏱️</span> SLA Monitor</a>
+        <div class="nav-section-label">Requests</div>
+        <a href="{% url 'my_requests' %}" class="nav-item {% block nav_reqs_admin %}{% endblock %}"><span class="nav-icon">📄</span> All Requests</a>
+        <a href="{% url 'create_request' %}" class="nav-item {% block nav_create_admin %}{% endblock %}"><span class="nav-icon">✏️</span> New Request</a>
+
+      {% elif request.user.is_approver_role %}
+        <div class="nav-section-label">Approvals</div>
+        <a href="{% url 'dashboard' %}" class="nav-item {% block nav_dash_approver %}{% endblock %}"><span class="nav-icon">🏠</span> Dashboard</a>
+        <a href="{% url 'pending_approvals' %}" class="nav-item {% block nav_pending %}{% endblock %}"><span class="nav-icon">⏳</span> Pending Approvals</a>
+        <a href="{% url 'approval_history' %}" class="nav-item {% block nav_hist %}{% endblock %}"><span class="nav-icon">📜</span> Approval History</a>
+        <a href="{% url 'delegate_approval' %}" class="nav-item {% block nav_delegate %}{% endblock %}"><span class="nav-icon">🔄</span> Delegate Authority</a>
+        <div class="nav-section-label">My Work</div>
+        <a href="{% url 'create_request' %}" class="nav-item {% block nav_create_approver %}{% endblock %}"><span class="nav-icon">✏️</span> New Request</a>
+        <a href="{% url 'my_requests' %}" class="nav-item {% block nav_my_approver %}{% endblock %}"><span class="nav-icon">📄</span> My Requests</a>
+
+      {% else %}
+        <div class="nav-section-label">My Workspace</div>
+        <a href="{% url 'dashboard' %}" class="nav-item {% block nav_dash %}{% endblock %}"><span class="nav-icon">🏠</span> Dashboard</a>
+        <a href="{% url 'create_request' %}" class="nav-item {% block nav_create %}{% endblock %}"><span class="nav-icon">✏️</span> New Request</a>
+        <a href="{% url 'my_requests' %}" class="nav-item {% block nav_my %}{% endblock %}"><span class="nav-icon">📄</span> My Requests</a>
+      {% endif %}
+
+      <div class="nav-section-label">Account</div>
+      <a href="{% url 'notifications_list' %}" class="nav-item {% block nav_notif %}{% endblock %}"><span class="nav-icon">🔔</span> Notifications</a>
+      <a href="{% url 'inbox' %}" class="nav-item {% block nav_inbox %}{% endblock %}"><span class="nav-icon">📬</span> Inbox</a>
+      <a href="{% url 'my_profile' %}" class="nav-item {% block nav_profile %}{% endblock %}"><span class="nav-icon">👤</span> My Profile</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="{% url 'logout' %}" class="nav-item" style="margin:0;padding:10px 0;"><span class="nav-icon">🚪</span> Sign Out</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-title">{% block header_title %}Dashboard{% endblock %}</div>
+      <div class="header-actions">
+
+        <div style="position:relative;">
+          <button class="notif-btn" id="notifBtn" onclick="toggleNotif()" title="Notifications">
+            🔔
+            {% with cnt=request.user.notifications.all|length %}
+              {% if cnt %}<span class="notif-count" id="notifCountBadge">{{ cnt }}</span>{% endif %}
+            {% endwith %}
+          </button>
+          <div class="notif-dropdown" id="notifDropdown">
+            <div class="notif-header">
+              Notifications
+              <button onclick="markAllRead()" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--blue-accent);">Mark all read</button>
+            </div>
+            <div class="notif-list">
+              {% for n in request.user.notifications.all|dictsortreversed:"created_at"|slice:":10" %}
+              <div class="notif-item {% if not n.is_read %}unread{% endif %}">
+                {% if n.request %}
+                <a href="{% url 'request_detail' n.request.pk %}" style="color:inherit;display:block;text-decoration:none;">
+                {% endif %}
+                  <div class="notif-item-title">{{ n.title }}</div>
+                  <div class="notif-item-msg">{{ n.message|truncatechars:60 }}</div>
+                  <div class="notif-item-time">{{ n.created_at|timesince }} ago</div>
+                {% if n.request %}
+                </a>
+                {% endif %}
+              </div>
+              {% empty %}
+              <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:.85rem;">No notifications</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <a href="{% url 'inbox' %}" style="text-decoration:none;">
+          <button class="notif-btn" title="Inbox">📬</button>
+        </a>
+
+        <span style="font-size:.8rem;color:var(--text-muted);">{{ request.user.employee_id|default:"No ID" }}</span>
+      </div>
+    </header>
+
+    <main class="page-content">
+      {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }}">
+        <span>{% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+        {{ msg }}
+      </div>
+      {% endfor %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script>
+function toggleNotif() {
+  document.getElementById('notifDropdown').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#notifBtn') && !e.target.closest('#notifDropdown')) {
+    var d = document.getElementById('notifDropdown');
+    if (d) d.classList.remove('open');
+  }
+});
+function markAllRead() {
+  fetch('{% url "mark_notifications_read" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCookie('csrftoken')}
+  }).then(function() { location.reload(); });
+}
+function getCookie(name) {
+  var c = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return c ? c.pop() : '';
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

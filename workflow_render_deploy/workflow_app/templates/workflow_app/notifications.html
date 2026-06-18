@@ -1,0 +1,33 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Notifications{% endblock %}
+{% block header_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">All Notifications</div><div class="page-subtitle">Your recent system notifications</div></div>
+</div>
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    {% for n in notifs %}
+    <div style="display:flex;gap:14px;padding:16px;border-bottom:1px solid var(--border-color);{% if not n.is_read %}background:rgba(59,130,246,.05);{% endif %}">
+      <div style="font-size:1.4rem;width:32px;flex-shrink:0;text-align:center;">
+        {% if n.notif_type == 'approved' %}✅{% elif n.notif_type == 'rejected' %}❌{% elif n.notif_type == 'returned' %}↩️{% elif n.notif_type == 'approval_required' %}⚡{% elif n.notif_type == 'payment' %}💰{% else %}ℹ️{% endif %}
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:.9rem;font-weight:600;">{{ n.title }}</div>
+        <div style="font-size:.82rem;color:var(--text-muted);margin-top:2px;">{{ n.message }}</div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:6px;">{{ n.created_at|timesince }} ago</div>
+      </div>
+      {% if n.request %}
+      <div><a href="{% url 'request_detail' n.request.pk %}" class="btn btn-outline" style="padding:5px 12px;font-size:.78rem;">View</a></div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div style="text-align:center;padding:60px;color:var(--text-muted);">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🔔</div>
+      <div>No notifications yet.</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

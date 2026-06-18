@@ -1,0 +1,116 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block header_title %}Administration Dashboard{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">System Overview</div>
+    <div class="page-subtitle">Manage users, workflows, and monitor system health</div>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-label">Total Users</div>
+    <div class="stat-value">{{ total_users }}</div>
+    <div class="stat-icon">👥</div>
+  </div>
+  <div class="stat-card amber">
+    <div class="stat-label">Total Requests</div>
+    <div class="stat-value">{{ total_requests }}</div>
+    <div class="stat-icon">📄</div>
+  </div>
+  <div class="stat-card violet">
+    <div class="stat-label">In Progress</div>
+    <div class="stat-value">{{ pending }}</div>
+    <div class="stat-icon">⏳</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Approved</div>
+    <div class="stat-value">{{ approved }}</div>
+    <div class="stat-icon">✅</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-label">Rejected</div>
+    <div class="stat-value">{{ rejected }}</div>
+    <div class="stat-icon">❌</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Payments Released</div>
+    <div class="stat-value">{{ payment_released }}</div>
+    <div class="stat-icon">💰</div>
+  </div>
+</div>
+
+{% if sla_breached %}
+<div class="alert alert-warning">
+  ⚠️ <strong>{{ sla_breached|length }} request(s)</strong> have breached SLA deadline and need immediate attention.
+</div>
+{% endif %}
+
+<!-- Quick Links -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+  <a href="{% url 'manage_users' %}" class="card" style="padding:20px;text-align:center;text-decoration:none;transition:var(--transition);" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+    <div style="font-size:2rem;margin-bottom:8px;">👥</div>
+    <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);">Manage Users</div>
+  </a>
+  <a href="{% url 'audit_trail' %}" class="card" style="padding:20px;text-align:center;text-decoration:none;transition:var(--transition);" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+    <div style="font-size:2rem;margin-bottom:8px;">🔍</div>
+    <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);">Audit Trail</div>
+  </a>
+  <a href="{% url 'sla_monitor' %}" class="card" style="padding:20px;text-align:center;text-decoration:none;transition:var(--transition);" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+    <div style="font-size:2rem;margin-bottom:8px;">⏱️</div>
+    <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);">SLA Monitor</div>
+  </a>
+  <a href="{% url 'my_requests' %}" class="card" style="padding:20px;text-align:center;text-decoration:none;transition:var(--transition);" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+    <div style="font-size:2rem;margin-bottom:8px;">📄</div>
+    <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);">All Requests</div>
+  </a>
+</div>
+
+<!-- Recent Requests Table -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📋 All Recent Requests</span>
+  </div>
+  <div class="table-wrap">
+    {% if recent_requests %}
+    <table>
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Subject</th>
+          <th>Category</th>
+          <th>Initiated By</th>
+          <th>Status</th>
+          <th>Progress</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in recent_requests %}
+        <tr>
+          <td><span class="ref-number">{{ req.reference_number }}</span></td>
+          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ req.subject }}</td>
+          <td style="font-size:.8rem;color:var(--text-muted);">{{ req.category.name }}</td>
+          <td>{{ req.initiator.get_full_name|default:req.initiator.username }}</td>
+          <td><span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span></td>
+          <td>
+            <div class="progress-bar"><div class="progress-fill" style="width:{% widthratio req.current_step req.total_steps 100 %}%"></div></div>
+            <div class="text-xs text-muted">{{ req.current_step }}/{{ req.total_steps }}</div>
+          </td>
+          <td style="font-size:.8rem;color:var(--text-muted);">{{ req.created_at|date:"M d, Y" }}</td>
+          <td><a href="{% url 'request_detail' req.pk %}" class="btn btn-outline btn-sm">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📄</div><h3>No requests found</h3></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

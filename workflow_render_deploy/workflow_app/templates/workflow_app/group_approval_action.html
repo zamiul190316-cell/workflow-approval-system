@@ -1,0 +1,173 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Group Approval — {{ req.reference_number }}{% endblock %}
+{% block header_title %}Group Approval Action{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <span class="ref-number">{{ req.reference_number }}</span>
+      <span class="badge badge-pending">Step {{ step.step_number }} of {{ req.total_steps }}</span>
+      <span class="badge badge-in_progress">👥 {{ group.name }}</span>
+    </div>
+    <div class="page-title">{{ req.subject }}</div>
+    <div class="page-subtitle">{{ req.category.get_group_display }} › {{ req.category.name }}</div>
+  </div>
+  <a href="{% url 'request_detail' req.pk %}" class="btn btn-outline">← Full Detail</a>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start;">
+
+  <!-- Request Info + Group Members -->
+  <div>
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">📄 Request Details</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;background:var(--bg-secondary);padding:14px;border-radius:8px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Submitted By</div>
+            <div style="font-weight:600;margin-top:3px;">{{ req.initiator.get_full_name|default:req.initiator.username }}</div>
+            <div style="font-size:.78rem;color:var(--text-muted);">{{ req.initiator.employee_id|default:'N/A' }}</div>
+          </div>
+          {% if req.amount %}
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Amount</div>
+            <div style="font-weight:700;font-size:1.1rem;margin-top:3px;color:var(--green-accent);">{{ req.currency }} {{ req.amount }}</div>
+          </div>
+          {% endif %}
+          {% if req.division %}<div><div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Division</div><div style="font-weight:600;margin-top:3px;">{{ req.division.name }}</div></div>{% endif %}
+          {% if req.branch %}<div><div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Branch</div><div style="font-weight:600;margin-top:3px;">{{ req.branch.name }}</div></div>{% endif %}
+        </div>
+        <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Description</div>
+        <div style="line-height:1.8;font-size:.9rem;padding:14px;border:1px solid var(--border-color);border-radius:8px;background:#fff;white-space:pre-wrap;">{{ req.description }}</div>
+      </div>
+    </div>
+
+    <!-- Group Members -->
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">👥 {{ group.name }} — Members</span></div>
+      <div class="card-body" style="padding:0;">
+        <table class="data-table">
+          <thead><tr><th>Member</th><th>Role</th><th>Division</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for m in members %}
+            <tr {% if m.user == request.user %}style="background:rgba(245,158,11,.06);"{% endif %}>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--blue-accent),var(--violet-accent));display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff;flex-shrink:0;">
+                    {{ m.user.first_name|first|upper }}{{ m.user.last_name|first|upper }}
+                  </div>
+                  <div>
+                    <strong>{{ m.user.get_full_name|default:m.user.username }}</strong>
+                    {% if m.user == request.user %}<span class="badge badge-amber" style="font-size:.65rem;margin-left:4px;">You</span>{% endif %}
+                  </div>
+                </div>
+              </td>
+              <td style="font-size:.78rem;">{{ m.user.get_role_display }}</td>
+              <td style="font-size:.78rem;color:var(--text-muted);">{{ m.user.division.name|default:"—" }}</td>
+              <td>{% if m.user.on_leave %}<span class="badge badge-red" style="font-size:.68rem;">On Leave</span>{% else %}<span class="badge badge-approved" style="font-size:.68rem;">Available</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History -->
+    {% if history %}
+    <div class="card">
+      <div class="card-header"><span class="card-title">💬 Activity History</span></div>
+      <div class="card-body">
+        {% for entry in history %}
+        <div style="display:flex;gap:12px;margin-bottom:14px;padding-bottom:14px;{% if not forloop.last %}border-bottom:1px solid var(--border-color);{% endif %}">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">
+            {% if 'approved' in entry.action %}✅{% elif 'rejected' in entry.action %}❌{% elif 'returned' in entry.action %}↩️{% else %}💬{% endif %}
+          </div>
+          <div>
+            <div style="font-size:.85rem;font-weight:600;">{{ entry.get_action_display }}</div>
+            <div style="font-size:.78rem;color:var(--text-muted);">{{ entry.actor.get_full_name|default:entry.actor.username }} — {{ entry.timestamp|date:"d M Y H:i" }}</div>
+            {% if entry.comment %}<div style="font-size:.82rem;margin-top:4px;padding:6px 10px;background:var(--bg-secondary);border-radius:6px;">{{ entry.comment }}</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Action Panel -->
+  <div style="position:sticky;top:80px;">
+    <div class="card" style="border:2px solid var(--blue-accent);">
+      <div class="card-header" style="background:rgba(59,130,246,.06);">
+        <span class="card-title">⚡ Take Action — {{ group.name }}</span>
+      </div>
+      <div class="card-body">
+        <div style="padding:10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:16px;font-size:.82rem;color:var(--text-muted);">
+          Acting as member of <strong style="color:var(--text-primary);">{{ group.name }}</strong>. Your action will complete this group approval step.
+        </div>
+
+        <!-- APPROVE -->
+        <form method="post" enctype="multipart/form-data" style="margin-bottom:12px;">
+          {% csrf_token %}<input type="hidden" name="action" value="approved">
+          <div class="form-group">
+            <label class="form-label">Approval Comment</label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="Optional comment..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Attach Document (PDF/DOCX/XLSX/Image)</label>
+            <input type="file" name="attachment" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+          </div>
+          <button type="submit" class="btn btn-success" style="width:100%;" onclick="return confirm('Approve this request?')">✅ Approve</button>
+        </form>
+
+        <div style="border-top:1px solid var(--border-color);margin:14px 0;"></div>
+
+        <!-- RETURN -->
+        <form method="post" style="margin-bottom:12px;">
+          {% csrf_token %}<input type="hidden" name="action" value="returned">
+          <div class="form-group">
+            <label class="form-label" style="color:var(--violet-accent);">Return Reason <span style="color:#ef4444;">*</span></label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="Why are you returning this?" required style="border-color:var(--violet-accent);"></textarea>
+          </div>
+          <button type="submit" class="btn btn-outline" style="width:100%;border-color:var(--violet-accent);color:var(--violet-accent);" onclick="return confirm('Return to initiator?')">↩️ Return to Initiator</button>
+        </form>
+
+        <!-- MODIFICATION REQUEST -->
+        <form method="post" style="margin-bottom:12px;">
+          {% csrf_token %}<input type="hidden" name="action" value="modification_requested">
+          <div class="form-group">
+            <label class="form-label" style="color:var(--amber-accent);">Modification Request <span style="color:#ef4444;">*</span></label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="What needs to be modified?" required style="border-color:var(--amber-accent);"></textarea>
+          </div>
+          <button type="submit" class="btn btn-amber" style="width:100%;" onclick="return confirm('Request modification?')">📝 Request Modification</button>
+        </form>
+
+        <div style="border-top:1px solid var(--border-color);margin:14px 0;"></div>
+
+        <!-- COMMENT ONLY -->
+        <form method="post" style="margin-bottom:12px;">
+          {% csrf_token %}<input type="hidden" name="action" value="commented">
+          <div class="form-group">
+            <label class="form-label">Comment Only</label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="Add a note without action..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-outline" style="width:100%;">💬 Add Comment</button>
+        </form>
+
+        <div style="border-top:1px solid var(--border-color);margin:14px 0;"></div>
+
+        <!-- REJECT -->
+        <form method="post">
+          {% csrf_token %}<input type="hidden" name="action" value="rejected">
+          <div class="form-group">
+            <label class="form-label" style="color:#ef4444;">Rejection Reason <span style="color:#ef4444;">*</span></label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="Reason for rejection..." required style="border-color:#ef4444;"></textarea>
+          </div>
+          <button type="submit" class="btn btn-danger" style="width:100%;" onclick="return confirm('Reject this request? Cannot be undone.')">❌ Reject Request</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

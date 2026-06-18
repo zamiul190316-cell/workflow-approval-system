@@ -1,0 +1,83 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Create Approval Group{% endblock %}
+{% block header_title %}Create Approval Group{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">➕ New Approval Group</div></div>
+  <a href="{% url 'manage_groups' %}" class="btn btn-outline">← Back</a>
+</div>
+
+<form method="post">
+{% csrf_token %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Group Information</span></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Group Name <span style="color:#ef4444;">*</span></label>
+        <input type="text" name="name" class="form-control" placeholder="e.g. IT Procurement Committee" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3" placeholder="Purpose of this approval group..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Division</label>
+        <select name="division" class="form-control">
+          <option value="">— Optional —</option>
+          {% for div in divisions %}<option value="{{ div.pk }}">{{ div.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="padding:14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;font-size:.83rem;color:var(--text-muted);">
+        ℹ️ When a request reaches a group approval step, <strong>all members</strong> receive the notification. <strong>Any one member</strong> can take action (approve/reject/return) to complete that step.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">👥 Select Members</span>
+      <span id="memberCount" class="badge badge-in_progress">0 selected</span>
+    </div>
+    <div class="card-body">
+      <input type="text" id="memberSearch" class="form-control" placeholder="🔍 Search members..."
+        oninput="filterMembers()" style="margin-bottom:12px;">
+      <div id="memberList" style="max-height:380px;overflow-y:auto;">
+        {% for u in users %}
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;border-bottom:1px solid var(--border-color);margin:0;" class="member-row"
+          data-name="{{ u.get_full_name|lower|default:u.username }}"
+          data-eid="{{ u.employee_id|lower|default:'' }}"
+          onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background='none'">
+          <input type="checkbox" name="members" value="{{ u.pk }}" onchange="updateCount()" style="width:16px;height:16px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--blue-accent),var(--violet-accent));display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0;">
+            {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.88rem;font-weight:600;">{{ u.get_full_name|default:u.username }}</div>
+            <div style="font-size:.75rem;color:var(--text-muted);">{{ u.employee_id|default:"N/A" }} · {{ u.designation|default:"" }} · {{ u.division.name|default:"" }}</div>
+          </div>
+          {% if u.on_leave %}<span class="badge badge-red" style="font-size:.68rem;">On Leave</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">💾 Create Group</button>
+    </div>
+  </div>
+</div>
+</form>
+
+<script>
+function filterMembers() {
+  const q = document.getElementById('memberSearch').value.toLowerCase();
+  document.querySelectorAll('.member-row').forEach(row => {
+    const match = row.dataset.name.includes(q) || row.dataset.eid.includes(q);
+    row.style.display = match ? '' : 'none';
+  });
+}
+function updateCount() {
+  const count = document.querySelectorAll('input[name="members"]:checked').length;
+  document.getElementById('memberCount').textContent = count + ' selected';
+}
+</script>
+{% endblock %}

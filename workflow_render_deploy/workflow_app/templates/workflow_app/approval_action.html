@@ -1,0 +1,196 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Review — {{ req.reference_number }}{% endblock %}
+{% block header_title %}Review & Approve{% endblock %}
+{% block nav_pending %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <span class="ref-number">{{ req.reference_number }}</span>
+      <span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span>
+      <span class="badge badge-in_progress">Step {{ step.step_number }} of {{ req.total_steps }}</span>
+      {% if req.is_sla_breached %}<span class="badge badge-red">⚠️ SLA Breached</span>{% endif %}
+    </div>
+    <div class="page-title">{{ req.subject }}</div>
+    <div class="page-subtitle">{{ req.category.get_group_display }} › {{ req.category.name }}</div>
+  </div>
+  <a href="{% url 'request_detail' req.pk %}" class="btn btn-outline">← Full Detail</a>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start;">
+
+  <!-- Left: Request Content -->
+  <div>
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">📄 Request Details</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;background:var(--bg-secondary);padding:14px;border-radius:8px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Initiated By</div>
+            <div style="font-weight:600;margin-top:3px;">{{ req.initiator.get_full_name|default:req.initiator.username }}</div>
+            <div style="font-size:.78rem;color:var(--text-muted);">{{ req.initiator.employee_id|default:'N/A' }} · {{ req.initiator.designation }}</div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Date Submitted</div>
+            <div style="font-weight:600;margin-top:3px;">{{ req.submitted_at|date:"F d, Y"|default:"—" }}</div>
+          </div>
+          {% if req.amount %}
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Amount</div>
+            <div style="font-weight:700;font-size:1.1rem;margin-top:3px;color:var(--green-accent);">{{ req.currency }} {{ req.amount|floatformat:2 }}</div>
+          </div>
+          {% endif %}
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">SLA Deadline</div>
+            <div style="font-weight:600;margin-top:3px;{% if req.is_sla_breached %}color:#ef4444;{% endif %}">{{ req.sla_deadline|date:"M d, Y H:i"|default:"—" }}</div>
+          </div>
+          {% if req.division %}
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Division</div>
+            <div style="font-weight:600;margin-top:3px;">{{ req.division.name }}</div>
+          </div>
+          {% endif %}
+          {% if req.branch %}
+          <div>
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Branch</div>
+            <div style="font-weight:600;margin-top:3px;">{{ req.branch.name }}</div>
+          </div>
+          {% endif %}
+        </div>
+        <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Description</div>
+        <div style="line-height:1.8;font-size:.9rem;padding:14px;border:1px solid var(--border-color);border-radius:8px;background:#fff;white-space:pre-wrap;">{{ req.description }}</div>
+        {% if req.attachments_note %}
+        <div style="margin-top:12px;padding:10px;background:var(--bg-secondary);border-radius:6px;font-size:.82rem;">📎 <strong>Attachments:</strong> {{ req.attachments_note }}</div>
+        {% endif %}
+        {% if req.attachment_file %}
+        <div style="margin-top:8px;"><a href="{{ req.attachment_file.url }}" target="_blank" class="btn btn-outline" style="font-size:.82rem;padding:6px 14px;">📎 View Attached File</a></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Workflow Chain -->
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">📊 Approval Chain</span></div>
+      <div class="card-body">
+        <div class="step-tracker">
+          {% for s in steps %}
+          <div class="step-item {% if s.status == 'approved' %}done{% elif s.status == 'rejected' %}rejected{% elif s.status == 'returned' %}returned{% elif s.pk == step.pk %}active{% endif %}">
+            <div class="step-circle">{% if s.status == 'approved' %}✓{% elif s.status == 'rejected' %}✕{% elif s.status == 'returned' %}↩{% else %}{{ s.step_number }}{% endif %}</div>
+            <div class="step-label">{{ s.approver.first_name|default:s.approver.username }}<br><span style="font-size:.62rem;opacity:.7;">{{ s.get_approver_role_display }}</span></div>
+          </div>
+          {% endfor %}
+        </div>
+        <table class="data-table" style="margin-top:16px;">
+          <thead><tr><th>#</th><th>Approver</th><th>Division</th><th>Role</th><th>Status</th><th>Comment</th></tr></thead>
+          <tbody>
+            {% for s in steps %}
+            <tr {% if s.pk == step.pk %}style="background:rgba(245,158,11,.06);"{% endif %}>
+              <td>{{ s.step_number }}</td>
+              <td><strong>{{ s.approver.get_full_name|default:s.approver.username }}</strong><br><small style="color:var(--text-muted);">{{ s.approver.employee_id|default:'N/A' }}</small></td>
+              <td style="font-size:.78rem;">{{ s.approver.division.name|default:"—" }}</td>
+              <td><span class="badge badge-in_progress" style="font-size:.7rem;">{{ s.get_approver_role_display }}</span></td>
+              <td><span class="badge badge-{{ s.status }}">{% if s.pk == step.pk %}⚡ Your Turn{% else %}{{ s.get_status_display }}{% endif %}</span></td>
+              <td style="font-size:.82rem;max-width:160px;">{{ s.comment|truncatechars:60|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History -->
+    {% if history %}
+    <div class="card">
+      <div class="card-header"><span class="card-title">💬 Activity History</span></div>
+      <div class="card-body">
+        {% for entry in history %}
+        <div style="display:flex;gap:12px;margin-bottom:14px;padding-bottom:14px;{% if not forloop.last %}border-bottom:1px solid var(--border-color);{% endif %}">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">
+            {% if 'approved' in entry.action %}✅{% elif 'rejected' in entry.action %}❌{% elif 'returned' in entry.action %}↩️{% elif entry.action == 'submitted' %}🚀{% elif entry.action == 'created' %}📝{% else %}💬{% endif %}
+          </div>
+          <div>
+            <div style="font-size:.85rem;font-weight:600;">{{ entry.get_action_display }}</div>
+            <div style="font-size:.78rem;color:var(--text-muted);">{{ entry.actor.get_full_name|default:entry.actor.username }} — {{ entry.timestamp|date:"M d, Y H:i" }}</div>
+            {% if entry.comment %}<div style="font-size:.82rem;margin-top:4px;padding:6px 10px;background:var(--bg-secondary);border-radius:6px;">{{ entry.comment }}</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: Action Panel -->
+  <div style="position:sticky;top:80px;">
+    <div class="card" style="border:2px solid var(--amber-accent);">
+      <div class="card-header" style="background:rgba(245,158,11,.06);">
+        <span class="card-title">⚡ Your Action Required</span>
+      </div>
+      <div class="card-body">
+        <div style="padding:12px;background:var(--bg-secondary);border-radius:8px;margin-bottom:16px;">
+          <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Your Role</div>
+          <div style="font-weight:700;font-size:1rem;margin-top:4px;">{{ step.get_approver_role_display }}</div>
+          {% if step.deadline %}<div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;">Deadline: <strong>{{ step.deadline|date:"M d, Y" }}</strong></div>{% endif %}
+          {% if step.approver.signature_image %}<div style="margin-top:8px;"><img src="{{ step.approver.signature_image.url }}" alt="Your Signature" style="max-height:40px;opacity:.6;border-bottom:1px solid #aaa;"><div style="font-size:.68rem;color:var(--text-muted);">Your signature on file</div></div>{% endif %}
+        </div>
+
+        <!-- APPROVE -->
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="approve">
+          <div class="form-group">
+            <label class="form-label">Approval Comment (Optional)</label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="Add an approval note..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:.78rem;">Attach File (Optional)</label>
+            <input type="file" name="attachment" class="form-control" style="font-size:.82rem;">
+          </div>
+          <button type="submit" class="btn btn-success" style="width:100%;" onclick="return confirm('Approve this step?')">✅ Approve</button>
+        </form>
+
+        <div style="margin:14px 0;border-top:1px solid var(--border-color);"></div>
+
+        <!-- RETURN FOR MODIFICATION -->
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="return">
+          <div class="form-group">
+            <label class="form-label" style="color:var(--blue-accent);">Return Reason <span style="color:#ef4444;">*</span></label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="What needs to be corrected?" required style="border-color:var(--blue-accent);"></textarea>
+          </div>
+          <button type="submit" class="btn btn-outline" style="width:100%;border-color:var(--blue-accent);color:var(--blue-accent);" onclick="return confirm('Return this request for modification?')">↩️ Return for Modification</button>
+        </form>
+
+        <div style="margin:14px 0;border-top:1px solid var(--border-color);"></div>
+
+        <!-- COMMENT ONLY -->
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="comment">
+          <div class="form-group">
+            <label class="form-label">Comment Only (No Action)</label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="Add a comment without approving/rejecting..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-outline" style="width:100%;">💬 Add Comment</button>
+        </form>
+
+        <div style="margin:14px 0;border-top:1px solid var(--border-color);"></div>
+
+        <!-- REJECT -->
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reject">
+          <div class="form-group">
+            <label class="form-label" style="color:#ef4444;">Rejection Reason <span style="color:#ef4444;">*</span></label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="Reason for rejection (required)..." required style="border-color:#ef4444;"></textarea>
+          </div>
+          <button type="submit" class="btn btn-danger" style="width:100%;" onclick="return confirm('Reject this request? It will be sent back to initiator.')">❌ Reject Request</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

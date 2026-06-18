@@ -1,0 +1,74 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Leave Management{% endblock %}
+{% block header_title %}Leave Management{% endblock %}
+{% block nav_leaves %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Leave & Availability</div>
+    <div class="page-subtitle">Track employee leave — approvals route around absent staff</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">➕ Record Leave</span></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Employee *</label>
+          <select name="user_id" class="form-control" required>
+            <option value="">— Select —</option>
+            {% for u in users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.employee_id|default:"N/A" }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Start Date *</label>
+          <input type="date" name="start_date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Date *</label>
+          <input type="date" name="end_date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason</label>
+          <textarea name="reason" class="form-control" rows="2"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Record Leave</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">🏖️ Leave Records</span></div>
+    <div class="card-body" style="padding:0;">
+      <table class="data-table">
+        <thead><tr><th>Employee</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for leave in leaves %}
+          <tr>
+            <td><strong>{{ leave.user.get_full_name|default:leave.user.username }}</strong><br><small style="color:var(--text-muted);">{{ leave.user.designation }}</small></td>
+            <td>{{ leave.start_date|date:"d M Y" }}</td>
+            <td>{{ leave.end_date|date:"d M Y" }}</td>
+            <td style="font-size:.82rem;">{{ leave.reason|truncatechars:40|default:"—" }}</td>
+            <td>{% if leave.status == 'active' %}<span class="badge badge-pending">On Leave</span>{% else %}<span class="badge badge-approved">Ended</span>{% endif %}</td>
+            <td>
+              {% if leave.status == 'active' %}
+              <form method="post" action="{% url 'end_leave' leave.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline" style="padding:4px 12px;font-size:.78rem;">End Leave</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">No leave records.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

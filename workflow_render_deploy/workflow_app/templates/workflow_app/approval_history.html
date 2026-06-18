@@ -1,0 +1,34 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Approval History{% endblock %}
+{% block header_title %}Approval History{% endblock %}
+{% block nav_hist %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">My Approval History</div><div class="page-subtitle">All requests you have acted upon</div></div>
+</div>
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Category</th><th>Initiator</th><th>My Role</th><th>Action</th><th>Date</th><th>Comment</th><th></th></tr></thead>
+      <tbody>
+        {% for step in steps %}
+        <tr>
+          <td><span class="ref-number" style="font-size:.82rem;">{{ step.request.reference_number }}</span></td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.88rem;">{{ step.request.subject }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ step.request.category.name }}</td>
+          <td style="font-size:.85rem;">{{ step.request.initiator.get_full_name|default:step.request.initiator.username }}</td>
+          <td><span class="badge badge-in_progress" style="font-size:.72rem;">{{ step.get_approver_role_display }}</span></td>
+          <td><span class="badge badge-{{ step.status }}">{{ step.get_status_display }}</span></td>
+          <td style="font-size:.82rem;color:var(--text-muted);">{{ step.action_taken_at|date:"d M Y H:i"|default:"—" }}</td>
+          <td style="font-size:.82rem;max-width:160px;">{{ step.comment|truncatechars:60|default:"—" }}</td>
+          <td><a href="{% url 'request_detail' step.request.pk %}" class="btn btn-outline" style="padding:4px 10px;font-size:.78rem;">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">No approval history yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

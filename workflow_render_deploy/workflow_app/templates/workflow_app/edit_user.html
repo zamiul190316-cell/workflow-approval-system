@@ -1,0 +1,95 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}Edit User{% endblock %}
+{% block header_title %}Edit User{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Edit: {{ user_obj.get_full_name|default:user_obj.username }}</div><div class="page-subtitle">Employee ID: {{ user_obj.employee_id|default:"N/A" }}</div></div>
+  <a href="{% url 'manage_users' %}" class="btn btn-outline">← Back</a>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+{% csrf_token %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">👤 Account Details</span></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select name="role" class="form-control">
+          {% for val, label in role_choices %}<option value="{{ val }}" {% if user_obj.role == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employee ID</label>
+        <input type="text" name="employee_id" class="form-control" value="{{ user_obj.employee_id|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Designation</label>
+        <input type="text" name="designation" class="form-control" value="{{ user_obj.designation }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="text" name="phone" class="form-control" value="{{ user_obj.phone }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Division</label>
+        <select name="division" class="form-control">
+          <option value="">— None —</option>
+          {% for div in divisions %}<option value="{{ div.pk }}" {% if user_obj.division_id == div.pk %}selected{% endif %}>{{ div.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Branch</label>
+        <select name="branch" class="form-control">
+          <option value="">— None —</option>
+          {% for br in branches %}<option value="{{ br.pk }}" {% if user_obj.branch_id == br.pk %}selected{% endif %}>{{ br.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">⚙️ Settings & Signature</span></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}> <span>Account Active</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" name="is_available_for_approval" {% if user_obj.is_available_for_approval %}checked{% endif %}> <span>Available for Approval</span>
+        </label>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">Uncheck if temporarily unavailable (but not on official leave)</div>
+      </div>
+      <div class="form-group" style="margin-top:20px;">
+        <label class="form-label">Signature Image (PNG/JPG)</label>
+        {% if user_obj.signature_image %}
+        <div style="margin-bottom:10px;padding:10px;background:var(--bg-secondary);border-radius:8px;">
+          <img src="{{ user_obj.signature_image.url }}" alt="Current Signature" style="max-height:60px;max-width:200px;border-bottom:1px solid #aaa;">
+          <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">Current signature on file</div>
+        </div>
+        {% else %}
+        <div style="margin-bottom:8px;padding:10px;background:var(--bg-secondary);border-radius:6px;font-size:.82rem;color:var(--text-muted);">No signature uploaded yet</div>
+        {% endif %}
+        <input type="file" name="signature_image" class="form-control" accept="image/png,image/jpeg">
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">Used in Digital Signature PDF mode</div>
+      </div>
+      <div style="margin-top:20px;padding:14px;background:var(--bg-secondary);border-radius:8px;">
+        <div style="font-size:.78rem;font-weight:600;color:var(--text-muted);margin-bottom:8px;">CURRENT INFO</div>
+        <div style="font-size:.82rem;line-height:2;">
+          <div>Username: <strong>{{ user_obj.username }}</strong></div>
+          <div>Email: {{ user_obj.email|default:"—" }}</div>
+          <div>Joined: {{ user_obj.created_at|date:"d M Y" }}</div>
+          <div>Leave Status: {% if user_obj.on_leave %}<span style="color:#ef4444;">On Leave</span>{% else %}<span style="color:var(--green-accent);">Available</span>{% endif %}</div>
+          {% if user_obj.delegate_to %}<div>Delegated to: {{ user_obj.delegate_to.get_full_name }}</div>{% endif %}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:20px;">Save Changes</button>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}

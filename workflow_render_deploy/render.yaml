@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: workflow-approval-system
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn workflow_project.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: workflow-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: ""   # Fill in your .onrender.com URL after first deploy
+      - key: EMAIL_HOST_USER
+        value: "zamiul190316@gmail.com"
+      - key: EMAIL_HOST_PASSWORD
+        sync: false   # Enter manually in Render dashboard (secret)
+      - key: SITE_URL
+        value: ""     # Fill in your .onrender.com URL after first deploy
+
+databases:
+  - name: workflow-db
+    databaseName: workflow_db
+    user: workflow_user
+    plan: free

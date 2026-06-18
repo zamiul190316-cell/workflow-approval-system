@@ -1,0 +1,267 @@
+{% extends 'workflow_app/base.html' %}
+{% block title %}{% if edit_mode %}Edit{% else %}New{% endif %} Request{% endblock %}
+{% block header_title %}{% if edit_mode %}Edit Request{% else %}Create New Request{% endif %}{% endblock %}
+{% block nav_create %}{% if not edit_mode %}active{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{% if edit_mode %}Edit: {{ req.reference_number }}{% else %}New Approval Request{% endif %}</div>
+    <div class="page-subtitle">Minimum 2 approvers required · Maximum 50 approvers</div>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="requestForm">
+{% csrf_token %}
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start;">
+
+  <!-- Left -->
+  <div>
+    <!-- Template Loader (create mode only) -->
+    {% if not edit_mode and templates %}
+    <div class="card mb-4" style="border:2px dashed var(--border-color);">
+      <div class="card-body" style="display:flex;align-items:center;gap:16px;padding:16px;">
+        <span style="font-size:1.5rem;">📋</span>
+        <div style="flex:1;">
+          <label class="form-label" style="margin:0 0 4px;">Load from Template</label>
+          <select id="templateSelect" class="form-control" onchange="loadTemplate(this.value)">
+            <option value="">— Select a Workflow Template —</option>
+            {% regroup templates by category.get_group_display as tmpl_groups %}
+            {% for grp in tmpl_groups %}
+            <optgroup label="{{ grp.grouper }}">
+              {% for t in grp.list %}<option value="{{ t.pk }}">{{ t.name }}</option>{% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="font-size:.78rem;color:var(--text-muted);min-width:120px;">Auto-fills approver chain</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Request Details -->
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">📄 Request Details</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Category <span style="color:#ef4444;">*</span></label>
+          <select name="category" class="form-control" required id="catSelect">
+            <option value="">— Select Category —</option>
+            {% regroup categories by get_group_display as grouped_cats %}
+            {% for group in grouped_cats %}
+            <optgroup label="{{ group.grouper }}">
+              {% for cat in group.list %}
+              <option value="{{ cat.pk }}" {% if edit_mode and req.category.pk == cat.pk %}selected{% endif %}>
+                {{ cat.name }}{% if cat.required_division %} (requires {{ cat.min_required_from_division }}+ {{ cat.required_division.name }} approver{{ cat.min_required_from_division|pluralize }}){% endif %}
+              </option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Subject <span style="color:#ef4444;">*</span></label>
+          <input type="text" name="subject" class="form-control" value="{% if edit_mode %}{{ req.subject }}{% endif %}" placeholder="Brief subject of the request" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description <span style="color:#ef4444;">*</span></label>
+          <textarea name="description" class="form-control" rows="6" placeholder="Provide full details of this request..." required>{% if edit_mode %}{{ req.description }}{% endif %}</textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Amount (Optional)</label>
+            <input type="number" name="amount" class="form-control" step="0.01" value="{% if edit_mode and req.amount %}{{ req.amount }}{% endif %}" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Currency</label>
+            <select name="currency" class="form-control">
+              <option value="BDT">BDT (Taka)</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Division</label>
+            <select name="division" class="form-control">
+              <option value="">— Optional —</option>
+              {% for div in divisions %}<option value="{{ div.pk }}" {% if edit_mode and req.division_id == div.pk %}selected{% endif %}>{{ div.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Branch</label>
+            <select name="branch" class="form-control">
+              <option value="">— Optional —</option>
+              {% for br in branches %}<option value="{{ br.pk }}" {% if edit_mode and req.branch_id == br.pk %}selected{% endif %}>{{ br.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">PDF Mode</label>
+          <select name="pdf_mode" class="form-control">
+            <option value="system" {% if edit_mode and req.pdf_mode == 'system' %}selected{% endif %}>📋 System Generated (No physical signature required)</option>
+            <option value="manual" {% if edit_mode and req.pdf_mode == 'manual' %}selected{% endif %}>✍️ Manual Signature Print</option>
+            <option value="digital" {% if edit_mode and req.pdf_mode == 'digital' %}selected{% endif %}>🔐 Digital Signature PDF</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Attachments Note</label>
+          <textarea name="attachments_note" class="form-control" rows="2" placeholder="List any physical documents attached...">{% if edit_mode %}{{ req.attachments_note }}{% endif %}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Upload File (Optional)</label>
+          <input type="file" name="attachment_file" class="form-control">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Approvers -->
+  <div>
+    <div class="card" style="position:sticky;top:80px;">
+      <div class="card-header">
+        <span class="card-title">👥 Approval Chain</span>
+        <span id="approverCount" class="badge badge-in_progress">0 approvers</span>
+      </div>
+      <div class="card-body">
+        <div id="divisionHint" style="display:none;padding:10px;background:#eff6ff;border-radius:6px;margin-bottom:12px;font-size:.8rem;color:#1d4ed8;"></div>
+        <div style="margin-bottom:10px;display:flex;gap:8px;">
+          <input type="text" id="approverSearch" class="form-control" placeholder="🔍 Search approver..." oninput="filterApprovers()" style="flex:1;">
+          <select id="divisionFilter" class="form-control" style="max-width:150px;" onchange="filterApprovers()">
+            <option value="">All Divisions</option>
+            {% for div in divisions %}<option value="{{ div.pk }}">{{ div.name }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="approver-list" id="approverList">
+          {% if edit_mode %}
+            {% for step in current_steps %}
+            <div class="approver-row" data-index="{{ step.step_number }}">
+              <div class="step-num">{{ step.step_number }}</div>
+              <select name="approvers" class="form-control" required>
+                <option value="">— Select —</option>
+                {% for ap in approvers %}<option value="{{ ap.pk }}" {% if ap.pk == step.approver.pk %}selected{% endif %}>{{ ap.get_full_name|default:ap.username }} ({{ ap.employee_id|default:'N/A' }}){% if ap.division %} · {{ ap.division.name }}{% endif %}{% if ap.on_leave %} 🏖️{% endif %}</option>{% endfor %}
+              </select>
+              <select name="approver_roles" class="form-control" style="max-width:130px;">
+                {% for val, label in role_choices %}<option value="{{ val }}" {% if val == step.approver_role %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              <button type="button" class="remove-btn" onclick="removeApprover(this)">✕</button>
+            </div>
+            {% endfor %}
+          {% else %}
+            {% for i in "12" %}
+            <div class="approver-row">
+              <div class="step-num">{{ forloop.counter }}</div>
+              <select name="approvers" class="form-control" required>
+                <option value="">— Select —</option>
+                {% for ap in approvers %}<option value="{{ ap.pk }}">{{ ap.get_full_name|default:ap.username }} ({{ ap.employee_id|default:'N/A' }}){% if ap.division %} · {{ ap.division.name }}{% endif %}{% if ap.on_leave %} 🏖️{% endif %}</option>{% endfor %}
+              </select>
+              <select name="approver_roles" class="form-control" style="max-width:130px;">
+                {% for val, label in role_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+              </select>
+              <button type="button" class="remove-btn" onclick="removeApprover(this)">✕</button>
+            </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <button type="button" class="add-approver-btn mt-3" id="addBtn" onclick="addApprover()">➕ Add Approver</button>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
+          <button type="submit" class="btn btn-amber" style="width:100%;font-size:1rem;padding:12px;">💾 Save as Draft</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</form>
+
+<script>
+const allApprovers = [
+  {% for ap in approvers %}
+  {id:{{ ap.pk }}, name:"{{ ap.get_full_name|default:ap.username|escapejs }}", eid:"{{ ap.employee_id|default:'N/A' }}", des:"{{ ap.designation|escapejs }}", div:"{{ ap.division.name|default:''|escapejs }}", divId:"{{ ap.division.pk|default:'' }}", onLeave:{{ ap.on_leave|yesno:"true,false" }}},
+  {% endfor %}
+];
+const roleOptions = `{% for val, label in role_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}`;
+const MAX = 50;
+
+function buildOption(ap) {
+  const leave = ap.onLeave ? ' 🏖️ (On Leave)' : '';
+  return `<option value="${ap.id}">${ap.name} (${ap.eid})${ap.div ? ' · '+ap.div : ''}${leave}</option>`;
+}
+
+function currentApprovers(filter='', divId='') {
+  return allApprovers.filter(a => {
+    const matchQ = !filter || a.name.toLowerCase().includes(filter.toLowerCase()) || a.eid.toLowerCase().includes(filter.toLowerCase()) || a.des.toLowerCase().includes(filter.toLowerCase());
+    const matchD = !divId || a.divId == divId;
+    return matchQ && matchD;
+  });
+}
+
+function buildSelect(existingVal='') {
+  const filter = document.getElementById('approverSearch')?.value || '';
+  const divId = document.getElementById('divisionFilter')?.value || '';
+  const opts = currentApprovers(filter, divId);
+  return `<select name="approvers" class="form-control" required>
+    <option value="">— Select Approver —</option>
+    ${opts.map(a => `<option value="${a.id}" ${a.id==existingVal?'selected':''}>${a.name} (${a.eid})${a.div?' · '+a.div:''}${a.onLeave?' 🏖️':''}</option>`).join('')}
+  </select>`;
+}
+
+function addApprover(existingApproverId='', existingRole='') {
+  const rows = document.querySelectorAll('.approver-row');
+  if (rows.length >= MAX) { alert('Maximum 50 approvers allowed.'); return; }
+  const list = document.getElementById('approverList');
+  const div = document.createElement('div');
+  div.className = 'approver-row';
+  div.innerHTML = `
+    <div class="step-num">${rows.length + 1}</div>
+    ${buildSelect(existingApproverId)}
+    <select name="approver_roles" class="form-control" style="max-width:130px;">${roleOptions.replace(`value="${existingRole}"`, `value="${existingRole}" selected`)}</select>
+    <button type="button" class="remove-btn" onclick="removeApprover(this)">✕</button>
+  `;
+  list.appendChild(div);
+  updateCount();
+}
+
+function removeApprover(btn) {
+  if (document.querySelectorAll('.approver-row').length <= 2) { alert('Minimum 2 approvers required.'); return; }
+  btn.closest('.approver-row').remove();
+  updateCount();
+}
+
+function updateCount() {
+  const c = document.querySelectorAll('.approver-row').length;
+  document.getElementById('approverCount').textContent = c + ' approver' + (c !== 1 ? 's' : '');
+  document.getElementById('addBtn').style.display = c >= MAX ? 'none' : '';
+  document.querySelectorAll('.approver-row').forEach((r, i) => r.querySelector('.step-num').textContent = i+1);
+}
+
+function filterApprovers() {
+  const filter = document.getElementById('approverSearch').value;
+  const divId = document.getElementById('divisionFilter').value;
+  document.querySelectorAll('.approver-row select[name="approvers"]').forEach(sel => {
+    const existing = sel.value;
+    const opts = currentApprovers(filter, divId);
+    sel.innerHTML = `<option value="">— Select Approver —</option>` + opts.map(a => `<option value="${a.id}" ${a.id==existing?'selected':''}>${a.name} (${a.eid})${a.div?' · '+a.div:''}${a.onLeave?' 🏖️':''}</option>`).join('');
+  });
+}
+
+function loadTemplate(templateId) {
+  if (!templateId) return;
+  fetch(`/api/template/${templateId}/steps/`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('approverList').innerHTML = '';
+      data.steps.forEach((s, i) => {
+        addApprover(s.approver_id, s.role);
+      });
+      alert(`✅ Template loaded with ${data.steps.length} approvers.`);
+    });
+}
+
+updateCount();
+</script>
+{% endblock %}
